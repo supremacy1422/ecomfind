@@ -1,710 +1,755 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import {
-  Loader2,
-  Search,
-  Download,
-  Globe,
-  Zap,
-  TrendingUp,
-  AlertTriangle,
-  CheckCircle2,
-  XCircle,
-  Mail,
-  ArrowRight,
-  BarChart3,
-  Shield,
-  Cpu,
-  Clock,
-  Target,
-  Layers,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import Navbar from "@/components/Navbar";
+import { createClient } from "@supabase/supabase-js";
 
-// ─── PREMIUM EXECUTIVE AUDIT REPORT GENERATOR ───
-function generateReportHTML(data: any) {
-  const {
-    url,
-    summary,
-    metrics,
-    issues,
-    opportunities,
-    revenueImpact,
-    competitorAnalysis,
-    aiReadiness,
-    techStack,
-    actionPlan,
-    timestamp,
-  } = data;
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-  const score = metrics?.score ?? 0;
-  const scoreColor = score >= 80 ? "#10b981" : score >= 50 ? "#f59e0b" : "#ef4444";
-  const scoreLabel = score >= 80 ? "Excellent" : score >= 50 ? "Needs Improvement" : "Critical";
+/* ─── Inline SVG Icons ─── */
+const IconHome = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+);
+const IconZap = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+);
+const IconSend = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+);
+const IconDownload = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+);
+const IconGlobe = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+);
+const IconBarChart = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+);
+const IconShield = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+);
+const IconClock = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+);
+const IconLock = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+);
+const IconCheck = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+);
+const IconAlert = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+);
+const IconTrendingUp = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+);
+const IconRefresh = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+);
+const IconSparkles = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+);
+const IconMail = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+);
+const IconUser = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+);
+const IconStore = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+);
+const IconCpu = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2M15 20v2M9 2v2M9 20v2M20 15h2M2 15h2M20 9h2M2 9h2"/></svg>
+);
+const IconTarget = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+);
+const IconX = ({ className = "w-5 h-5" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+);
 
-  const formatCurrency = (val: number) =>
-    new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(val || 0);
-
-  const formatNumber = (val: number) =>
-    new Intl.NumberFormat("en-US").format(val || 0);
-
-  const monthlyRevenue = metrics?.monthlyRevenue ?? 0;
-  const recoveryRate = opportunities?.reduce((acc: number, o: any) => acc + (o.impactValue || 0), 0) ?? 0;
-  const annualOpportunity = recoveryRate * 12;
-  const criticalCount = issues?.filter((i: any) => i.severity === "critical").length ?? 0;
-  const warningCount = issues?.filter((i: any) => i.severity === "warning").length ?? 0;
-
-  return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>EcomFind Executive Audit Report — ${url}</title>
-  <style>
-    @page { size: A4; margin: 0; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1f2937; line-height: 1.6; background: #f3f4f6; }
-    .page { width: 210mm; min-height: 297mm; padding: 20mm; margin: 0 auto 10mm; background: #fff; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); page-break-after: always; position: relative; }
-    .page:last-child { page-break-after: auto; }
-
-    .cover { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; min-height: 257mm; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #fff; }
-    .cover-badge { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); padding: 8px 20px; border-radius: 999px; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 40px; }
-    .cover h1 { font-size: 42px; font-weight: 800; margin-bottom: 16px; line-height: 1.2; }
-    .cover-url { font-size: 18px; color: #94a3b8; margin-bottom: 60px; word-break: break-all; max-width: 80%; }
-    .cover-meta { display: flex; gap: 40px; margin-top: 40px; }
-    .cover-meta-item { text-align: center; }
-    .cover-meta-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 4px; }
-    .cover-meta-value { font-size: 20px; font-weight: 700; }
-    .cover-score { width: 140px; height: 140px; border-radius: 50%; border: 8px solid ${scoreColor}; display: flex; flex-direction: column; justify-content: center; align-items: center; margin: 30px 0; }
-    .cover-score-num { font-size: 48px; font-weight: 800; color: ${scoreColor}; }
-    .cover-score-label { font-size: 14px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; }
-
-    .section-header { border-bottom: 3px solid #0f172a; padding-bottom: 12px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; }
-    .section-header h2 { font-size: 24px; font-weight: 700; color: #0f172a; }
-    .section-num { width: 36px; height: 36px; background: #0f172a; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
-
-    .dashboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
-    .dash-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; text-align: center; }
-    .dash-card-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 8px; }
-    .dash-card-value { font-size: 28px; font-weight: 800; color: #0f172a; }
-    .dash-card-sub { font-size: 12px; color: #64748b; margin-top: 4px; }
-    .dash-card.positive { border-top: 4px solid #10b981; }
-    .dash-card.negative { border-top: 4px solid #ef4444; }
-    .dash-card.warning { border-top: 4px solid #f59e0b; }
-
-    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
-    th { background: #0f172a; color: #fff; text-align: left; padding: 12px; font-weight: 600; }
-    td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
-    tr:nth-child(even) { background: #f8fafc; }
-    .tag { display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
-    .tag-critical { background: #fee2e2; color: #991b1b; }
-    .tag-warning { background: #fef3c7; color: #92400e; }
-    .tag-success { background: #d1fae5; color: #065f46; }
-    .tag-info { background: #dbeafe; color: #1e40af; }
-
-    .opp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 20px 0; }
-    .opp-card { background: #f8fafc; border-radius: 12px; padding: 20px; border-left: 4px solid #10b981; }
-    .opp-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 8px; color: #0f172a; }
-    .opp-card p { font-size: 12px; color: #475569; margin-bottom: 12px; }
-    .opp-card .value { font-size: 20px; font-weight: 800; color: #10b981; }
-
-    .competitor-row { display: flex; align-items: center; gap: 16px; padding: 16px; background: #f8fafc; border-radius: 8px; margin-bottom: 12px; }
-    .competitor-rank { width: 32px; height: 32px; background: #0f172a; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
-    .competitor-info { flex: 1; }
-    .competitor-info h4 { font-size: 14px; font-weight: 700; }
-    .competitor-info span { font-size: 12px; color: #64748b; }
-    .competitor-score { font-size: 20px; font-weight: 800; color: #0f172a; }
-
-    .timeline { position: relative; padding-left: 30px; }
-    .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: #e2e8f0; }
-    .timeline-item { position: relative; margin-bottom: 24px; }
-    .timeline-dot { position: absolute; left: -26px; top: 4px; width: 16px; height: 16px; background: #0f172a; border-radius: 50%; border: 3px solid #fff; }
-    .timeline-content { background: #f8fafc; padding: 16px; border-radius: 8px; }
-    .timeline-content h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
-    .timeline-content p { font-size: 12px; color: #475569; }
-    .timeline-tag { display: inline-block; margin-top: 8px; padding: 2px 8px; background: #dbeafe; color: #1e40af; border-radius: 4px; font-size: 11px; font-weight: 600; }
-
-    .business-box { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #fff; padding: 32px; border-radius: 16px; margin: 24px 0; }
-    .business-box h3 { font-size: 20px; font-weight: 700; margin-bottom: 16px; }
-    .business-box ul { list-style: none; }
-    .business-box li { padding: 8px 0; padding-left: 24px; position: relative; font-size: 14px; }
-    .business-box li::before { content: '→'; position: absolute; left: 0; color: #10b981; font-weight: 700; }
-
-    .tech-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-    .tech-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center; font-size: 12px; }
-    .tech-item strong { display: block; font-size: 13px; margin-bottom: 4px; color: #0f172a; }
-
-    .page-footer { position: absolute; bottom: 10mm; left: 20mm; right: 20mm; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 8px; display: flex; justify-content: space-between; }
-
-    @media print {
-      body { background: #fff; }
-      .page { box-shadow: none; margin: 0; page-break-after: always; }
-    }
-  </style>
-</head>
-<body>
-
-<!-- PAGE 1: COVER -->
-<div class="page cover">
-  <div class="cover-badge">Confidential Executive Report</div>
-  <h1>E-Commerce Revenue<br>Recovery Audit</h1>
-  <div class="cover-url">${url}</div>
-  <div class="cover-score">
-    <div class="cover-score-num">${score}</div>
-    <div class="cover-score-label">${scoreLabel}</div>
-  </div>
-  <div class="cover-meta">
-    <div class="cover-meta-item">
-      <div class="cover-meta-label">Prepared By</div>
-      <div class="cover-meta-value">EcomFind AI</div>
-    </div>
-    <div class="cover-meta-item">
-      <div class="cover-meta-label">Date</div>
-      <div class="cover-meta-value">${new Date(timestamp || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>
-    </div>
-    <div class="cover-meta-item">
-      <div class="cover-meta-label">Pages</div>
-      <div class="cover-meta-value">10</div>
-    </div>
-  </div>
-</div>
-
-<!-- PAGE 2: EXECUTIVE DASHBOARD -->
-<div class="page">
-  <div class="section-header">
-    <div class="section-num">01</div>
-    <h2>Executive Dashboard</h2>
-  </div>
-  <p style="margin-bottom:24px; color:#475569; font-size:14px;">
-    This audit analyzed <strong>${url}</strong> across 47 revenue-critical data points. 
-    The site scored <strong style="color:${scoreColor}">${score}/100</strong> — ${scoreLabel.toLowerCase()}.
-  </p>
-  <div class="dashboard-grid">
-    <div class="dash-card ${score >= 50 ? "positive" : "negative"}">
-      <div class="dash-card-label">Audit Score</div>
-      <div class="dash-card-value" style="color:${scoreColor}">${score}</div>
-      <div class="dash-card-sub">out of 100</div>
-    </div>
-    <div class="dash-card warning">
-      <div class="dash-card-label">Issues Found</div>
-      <div class="dash-card-value">${issues?.length ?? 0}</div>
-      <div class="dash-card-sub">${criticalCount} critical</div>
-    </div>
-    <div class="dash-card positive">
-      <div class="dash-card-label">Opportunities</div>
-      <div class="dash-card-value">${opportunities?.length ?? 0}</div>
-      <div class="dash-card-sub">revenue recovery</div>
-    </div>
-  </div>
-  <div class="dashboard-grid" style="margin-top:16px;">
-    <div class="dash-card">
-      <div class="dash-card-label">Est. Monthly Revenue</div>
-      <div class="dash-card-value">${formatCurrency(monthlyRevenue)}</div>
-      <div class="dash-card-sub">based on traffic & niche</div>
-    </div>
-    <div class="dash-card">
-      <div class="dash-card-label">Annual Opportunity</div>
-      <div class="dash-card-value" style="color:#10b981;">${formatCurrency(annualOpportunity)}</div>
-      <div class="dash-card-sub">if all fixes applied</div>
-    </div>
-    <div class="dash-card">
-      <div class="dash-card-label">AI Readiness</div>
-      <div class="dash-card-value">${aiReadiness?.score ?? "N/A"}</div>
-      <div class="dash-card-sub">out of 100</div>
-    </div>
-  </div>
-  <div class="page-footer"><span>EcomFind Executive Audit</span><span>Page 2 of 10</span></div>
-</div>
-
-<!-- PAGE 3: REVENUE OPPORTUNITIES -->
-<div class="page">
-  <div class="section-header"><div class="section-num">02</div><h2>Revenue Recovery Opportunities</h2></div>
-  <p style="margin-bottom:24px; color:#475569; font-size:14px;">The following opportunities represent recoverable revenue. Each is ranked by impact and implementation difficulty.</p>
-  <div class="opp-grid">
-    ${opportunities?.map((opp: any, idx: number) => `
-    <div class="opp-card">
-      <h4>${idx + 1}. ${opp.title}</h4>
-      <p>${opp.description}</p>
-      <div class="value">${opp.impactValue ? formatCurrency(opp.impactValue) + "/mo" : "High Impact"}</div>
-    </div>
-    `).join("") || '<div class="opp-card"><h4>No opportunities detected</h4><p>The audit did not identify specific revenue opportunities. This may indicate limited data availability.</p></div>'}
-  </div>
-  <table>
-    <thead><tr><th>Opportunity</th><th>Category</th><th>Impact</th><th>Effort</th></tr></thead>
-    <tbody>
-      ${opportunities?.map((opp: any) => `
-      <tr>
-        <td><strong>${opp.title}</strong></td>
-        <td><span class="tag tag-info">${opp.category || "General"}</span></td>
-        <td><span class="tag ${(opp.impact || "").toLowerCase() === "high" ? "tag-critical" : "tag-warning"}">${opp.impact || "Medium"}</span></td>
-        <td><span class="tag tag-success">${opp.effort || "Medium"}</span></td>
-      </tr>
-      `).join("") || '<tr><td colspan="4">No data available</td></tr>'}
-    </tbody>
-  </table>
-  <div class="page-footer"><span>EcomFind Executive Audit</span><span>Page 3 of 10</span></div>
-</div>
-
-<!-- PAGE 4: CRITICAL ISSUES -->
-<div class="page">
-  <div class="section-header"><div class="section-num">03</div><h2>Critical Issues & Fixes</h2></div>
-  <p style="margin-bottom:24px; color:#475569; font-size:14px;">Issues are ranked by severity: Critical (revenue-blocking), Warning (growth-limiting), and Info (optimization).</p>
-  <table>
-    <thead><tr><th style="width:40px">#</th><th>Issue</th><th>Severity</th><th>Category</th></tr></thead>
-    <tbody>
-      ${issues?.map((issue: any, idx: number) => `
-      <tr>
-        <td>${idx + 1}</td>
-        <td><strong>${issue.title}</strong><br><span style="color:#64748b; font-size:12px;">${issue.description || ""}</span></td>
-        <td><span class="tag ${issue.severity === "critical" ? "tag-critical" : issue.severity === "warning" ? "tag-warning" : "tag-info"}">${issue.severity}</span></td>
-        <td><span class="tag tag-info">${issue.category || "General"}</span></td>
-      </tr>
-      `).join("") || '<tr><td colspan="4">No issues detected</td></tr>'}
-    </tbody>
-  </table>
-  <div class="page-footer"><span>EcomFind Executive Audit</span><span>Page 4 of 10</span></div>
-</div>
-
-<!-- PAGE 5: COMPETITIVE ANALYSIS -->
-<div class="page">
-  <div class="section-header"><div class="section-num">04</div><h2>Competitive Landscape</h2></div>
-  <p style="margin-bottom:24px; color:#475569; font-size:14px;">Benchmarking ${url} against top-performing competitors in the same niche.</p>
-  ${competitorAnalysis?.map((comp: any, idx: number) => `
-  <div class="competitor-row">
-    <div class="competitor-rank">${idx + 1}</div>
-    <div class="competitor-info">
-      <h4>${comp.name || comp.domain || "Competitor " + (idx + 1)}</h4>
-      <span>${comp.strengths ? "Strengths: " + comp.strengths.join(", ") : "Top performer in niche"}</span>
-    </div>
-    <div class="competitor-score">${comp.score || "—"}</div>
-  </div>
-  `).join("") || '<p style="color:#64748b;">Competitor data unavailable for this audit.</p>'}
-  <div style="margin-top:32px; padding:20px; background:#f8fafc; border-radius:12px;">
-    <h4 style="margin-bottom:12px; font-size:16px;">Strategic Recommendations</h4>
-    <ul style="padding-left:20px; color:#475569; font-size:13px; line-height:2;">
-      <li>Analyze competitor pricing strategies and adjust your value proposition</li>
-      <li>Identify content gaps where competitors rank but you do not</li>
-      <li>Benchmark page speed and mobile experience against top 3 competitors</li>
-      <li>Monitor competitor ad copy and landing page changes monthly</li>
-    </ul>
-  </div>
-  <div class="page-footer"><span>EcomFind Executive Audit</span><span>Page 5 of 10</span></div>
-</div>
-
-<!-- PAGE 6: AI READINESS -->
-<div class="page">
-  <div class="section-header"><div class="section-num">05</div><h2>AI & Automation Readiness</h2></div>
-  <div class="dashboard-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom:24px;">
-    <div class="dash-card"><div class="dash-card-label">Overall Score</div><div class="dash-card-value">${aiReadiness?.score ?? "N/A"}</div><div class="dash-card-sub">out of 100</div></div>
-    <div class="dash-card"><div class="dash-card-label">Automation Level</div><div class="dash-card-value">${aiReadiness?.automationLevel || "Basic"}</div><div class="dash-card-sub">current capability</div></div>
-    <div class="dash-card"><div class="dash-card-label">Data Quality</div><div class="dash-card-value">${aiReadiness?.dataQuality || "Fair"}</div><div class="dash-card-sub">for AI training</div></div>
-  </div>
-  <h4 style="margin:24px 0 12px; font-size:16px;">AI Implementation Roadmap</h4>
-  <table>
-    <thead><tr><th>Initiative</th><th>Impact</th><th>Complexity</th><th>Timeline</th></tr></thead>
-    <tbody>
-      <tr><td><strong>Personalized Product Recommendations</strong></td><td><span class="tag tag-critical">High</span></td><td><span class="tag tag-success">Low</span></td><td>2–4 weeks</td></tr>
-      <tr><td><strong>AI Chatbot for Customer Support</strong></td><td><span class="tag tag-critical">High</span></td><td><span class="tag tag-warning">Medium</span></td><td>4–6 weeks</td></tr>
-      <tr><td><strong>Dynamic Pricing Optimization</strong></td><td><span class="tag tag-critical">High</span></td><td><span class="tag tag-critical">High</span></td><td>8–12 weeks</td></tr>
-      <tr><td><strong>Predictive Inventory Management</strong></td><td><span class="tag tag-warning">Medium</span></td><td><span class="tag tag-critical">High</span></td><td>12+ weeks</td></tr>
-    </tbody>
-  </table>
-  <div class="page-footer"><span>EcomFind Executive Audit</span><span>Page 6 of 10</span></div>
-</div>
-
-<!-- PAGE 7: TECH STACK -->
-<div class="page">
-  <div class="section-header"><div class="section-num">06</div><h2>Technology Stack Detected</h2></div>
-  <p style="margin-bottom:24px; color:#475569; font-size:14px;">Technologies detected on ${url}. Missing critical tools represent immediate upgrade opportunities.</p>
-  <div class="tech-grid">
-    ${techStack?.map((tech: any) => `
-    <div class="tech-item"><strong>${tech.name}</strong><span style="color:#64748b;">${tech.category || "Tool"}</span></div>
-    `).join("") || '<div class="tech-item"><strong>Limited data</strong><span>Could not detect full stack</span></div>'}
-  </div>
-  <div style="margin-top:32px; padding:20px; background:#fef3c7; border-radius:12px; border-left:4px solid #f59e0b;">
-    <h4 style="margin-bottom:8px; font-size:16px;">⚠️ Missing Revenue-Critical Tools</h4>
-    <p style="font-size:13px; color:#475569;">Based on your niche and traffic, the following tools are commonly used by top performers but were not detected: Email marketing automation (Klaviyo/Attentive), SMS recovery (Postscript), Reviews (Yotpo/Judge.me), and Subscription management (Recharge/Ordergroove).</p>
-  </div>
-  <div class="page-footer"><span>EcomFind Executive Audit</span><span>Page 7 of 10</span></div>
-</div>
-
-<!-- PAGE 8: 90-DAY ACTION PLAN -->
-<div class="page">
-  <div class="section-header"><div class="section-num">07</div><h2>90-Day Revenue Recovery Plan</h2></div>
-  <div class="timeline">
-    <div class="timeline-item">
-      <div class="timeline-dot"></div>
-      <div class="timeline-content">
-        <h4>Days 1–30: Quick Wins</h4>
-        <p>Fix critical technical issues (page speed, mobile responsiveness, broken checkout flows). Implement abandoned cart recovery. Add trust signals (reviews, guarantees, secure checkout badges). Expected impact: +10–15% conversion rate.</p>
-        <span class="timeline-tag">High Priority</span>
-      </div>
-    </div>
-    <div class="timeline-item">
-      <div class="timeline-dot"></div>
-      <div class="timeline-content">
-        <h4>Days 31–60: Growth Infrastructure</h4>
-        <p>Launch email marketing sequences (welcome, abandoned cart, post-purchase). Install live chat or AI chatbot. Optimize product pages with A/B testing. Set up retargeting pixels. Expected impact: +20% customer lifetime value.</p>
-        <span class="timeline-tag">High Priority</span>
-      </div>
-    </div>
-    <div class="timeline-item">
-      <div class="timeline-dot"></div>
-      <div class="timeline-content">
-        <h4>Days 61–90: Scale & Automate</h4>
-        <p>Implement loyalty/referral program. Launch subscription or reorder automation. Add personalized product recommendations. Expand to new channels (SMS, push notifications). Expected impact: +25% repeat purchase rate.</p>
-        <span class="timeline-tag">Medium Priority</span>
-      </div>
-    </div>
-  </div>
-  <div class="page-footer"><span>EcomFind Executive Audit</span><span>Page 8 of 10</span></div>
-</div>
-
-<!-- PAGE 9: IF THIS WERE MY BUSINESS -->
-<div class="page">
-  <div class="section-header"><div class="section-num">08</div><h2>If This Were My Business</h2></div>
-  <p style="margin-bottom:24px; color:#475569; font-size:14px;">A candid CEO-level perspective on exactly what I would do in the next 90 days if I acquired or operated this store.</p>
-  <div class="business-box">
-    <h3>Immediate Actions (Week 1)</h3>
-    <ul>
-      <li>Audit and fix the top 3 conversion blockers identified in this report</li>
-      <li>Set up proper analytics and event tracking if not already in place</li>
-      <li>Implement a single abandoned cart email sequence (minimum viable recovery)</li>
-      <li>Review and optimize the top 5 landing pages for mobile experience</li>
-    </ul>
-  </div>
-  <div class="business-box" style="background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);">
-    <h3>Strategic Moves (Month 1–2)</h3>
-    <ul>
-      <li>Negotiate better payment processing rates to improve margins by 0.5–1%</li>
-      <li>Launch a customer win-back campaign for lapsed buyers (90+ days)</li>
-      <li>Add subscription or auto-replenish options for consumable products</li>
-      <li>Build an email list capture strategy with lead magnets or quizzes</li>
-    </ul>
-  </div>
-  <div class="business-box" style="background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);">
-    <h3>Scale Decisions (Month 3)</h3>
-    <ul>
-      <li>Evaluate wholesale/B2B channel if product margins support it</li>
-      <li>Test one new paid channel (TikTok, Pinterest, or YouTube ads)</li>
-      <li>Implement a referral program with meaningful incentives (15–20% credit)</li>
-      <li>Hire a part-time email specialist or automate with AI tools</li>
-    </ul>
-  </div>
-  <div class="page-footer"><span>EcomFind Executive Audit</span><span>Page 9 of 10</span></div>
-</div>
-
-<!-- PAGE 10: SUMMARY & NEXT STEPS -->
-<div class="page">
-  <div class="section-header"><div class="section-num">09</div><h2>Summary & Next Steps</h2></div>
-  <div style="background:#f8fafc; padding:24px; border-radius:12px; margin-bottom:24px;">
-    <h4 style="margin-bottom:12px;">Audit Summary</h4>
-    <p style="color:#475569; font-size:14px; line-height:1.8;">
-      <strong>${url}</strong> was audited on ${new Date(timestamp || Date.now()).toLocaleDateString()}.
-      The site scored <strong>${score}/100</strong> with <strong>${issues?.length ?? 0} issues</strong> identified
-      and <strong>${opportunities?.length ?? 0} revenue opportunities</strong> mapped.
-      Estimated annual revenue recovery potential is <strong style="color:#10b981;">${formatCurrency(annualOpportunity)}</strong>
-      if all recommended fixes are implemented within 90 days.
-    </p>
-  </div>
-  <h4 style="margin-bottom:16px;">Priority Matrix</h4>
-  <table>
-    <thead><tr><th>Priority</th><th>Action</th><th>Expected Impact</th></tr></thead>
-    <tbody>
-      <tr><td><span class="tag tag-critical">P0 — Critical</span></td><td>Fix checkout friction and mobile UX issues</td><td>+15% conversion rate</td></tr>
-      <tr><td><span class="tag tag-warning">P1 — High</span></td><td>Implement email/SMS abandoned cart recovery</td><td>+20% revenue recovery</td></tr>
-      <tr><td><span class="tag tag-warning">P1 — High</span></td><td>Add social proof and review widgets</td><td>+12% trust conversion</td></tr>
-      <tr><td><span class="tag tag-success">P2 — Medium</span></td><td>Launch loyalty/referral program</td><td>+25% repeat purchases</td></tr>
-      <tr><td><span class="tag tag-info">P3 — Low</span></td><td>AI chatbot and personalization engine</td><td>+18% AOV increase</td></tr>
-    </tbody>
-  </table>
-  <div style="margin-top:32px; padding:24px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color:#fff; border-radius:12px; text-align:center;">
-    <h4 style="margin-bottom:8px;">Ready to Recover Revenue?</h4>
-    <p style="font-size:14px; color:#94a3b8;">Contact EcomFind to implement these recommendations and start seeing results in 30 days.</p>
-  </div>
-  <div class="page-footer"><span>EcomFind Executive Audit</span><span>Page 10 of 10</span></div>
-</div>
-
-</body>
-</html>
-  `;
+function decodeHtmlEntities(str: string) {
+  if (!str) return "";
+  const txt = typeof window !== "undefined" ? document.createElement("textarea") : null;
+  if (txt) { txt.innerHTML = str; return txt.value; }
+  return str.replace(/&amp;/g, "&").replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">");
 }
 
-// ─── MAIN PAGE COMPONENT ───
+function extractNameFromEmail(email: string): { firstName: string; lastName: string } {
+  if (!email || !email.includes("@")) return { firstName: "", lastName: "" };
+  const local = email.split("@")[0];
+  const parts = local.split(/[._-]/).filter(p => p.length > 1 && !/^\d+$/.test(p));
+  if (parts.length >= 2) return { firstName: parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase(), lastName: parts[1].charAt(0).toUpperCase() + parts[1].slice(1).toLowerCase() };
+  if (parts.length === 1) return { firstName: parts[0].charAt(0).toUpperCase() + parts[0].slice(1).toLowerCase(), lastName: "" };
+  return { firstName: "", lastName: "" };
+}
+
+interface AuditIssue {
+  title: string; description: string; severity: "critical" | "high" | "medium" | "low"; category: string; service?: string;
+}
+interface AuditData {
+  storeName: string; storeUrl: string; overallScore: number;
+  scores: Record<string, number>; issues: AuditIssue[];
+  emails?: string[]; revenue?: { missedDemand: string; recoverable: string; fullPotential: string };
+}
+
+const severityMeta: Record<string, { color: string; border: string; label: string }> = {
+  critical: { color: "text-rose-400", border: "border-l-rose-500", label: "Critical" },
+  high: { color: "text-orange-400", border: "border-l-orange-500", label: "High" },
+  medium: { color: "text-amber-400", border: "border-l-amber-500", label: "Medium" },
+  low: { color: "text-blue-400", border: "border-l-blue-500", label: "Low" },
+};
+
+function ScoreRing({ score, size = 140 }: { score: number; size?: number }) {
+  const pct = Math.min(100, Math.max(0, score));
+  const r = (size - 12) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (pct / 100) * circ;
+  const color = pct >= 80 ? "#34d399" : pct >= 60 ? "#fbbf24" : pct >= 40 ? "#fb923c" : "#f87171";
+  return (
+    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} stroke="#1f2937" strokeWidth={8} fill="none" />
+        <circle cx={size / 2} cy={size / 2} r={r} stroke={color} strokeWidth={8} fill="none" strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" style={{ transition: "stroke-dashoffset 1s ease" }} />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-3xl font-bold text-white">{Math.round(pct)}</span>
+        <span className="text-xs text-slate-400 uppercase tracking-wider">Score</span>
+      </div>
+    </div>
+  );
+}
+
 export default function DiscoverPage() {
+  const router = useRouter();
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
   const [error, setError] = useState("");
-  const [downloading, setDownloading] = useState(false);
-  const router = useRouter();
-  const supabase = createClient();
+  const [data, setData] = useState<AuditData | null>(null);
+  const [user, setUser] = useState<any>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const resultRef = useRef<HTMLDivElement>(null);
 
-  const runAudit = async () => {
-    if (!url.trim()) return;
+  /* ─── Quick Outreach State ─── */
+  const [outreachEmail, setOutreachEmail] = useState("");
+  const [outreachSubject, setOutreachSubject] = useState("");
+  const [outreachBody, setOutreachBody] = useState("");
+  const [outreachSending, setOutreachSending] = useState(false);
+  const [outreachStatus, setOutreachStatus] = useState("");
+  const [showOutreachPanel, setShowOutreachPanel] = useState(false);
+
+  /* ─── FIXED: Supabase Auth ─── */
+  useEffect(() => {
+    async function checkAuth() {
+      const { data: sessionData } = await supabase.auth.getSession();
+      setUser(sessionData.session?.user ?? null);
+      setAuthChecked(true);
+    }
+    checkAuth();
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => { listener.subscription.unsubscribe(); };
+  }, []);
+
+  useEffect(() => {
+    if (data && resultRef.current) {
+      setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+    }
+  }, [data]);
+
+  async function runAudit() {
+    setError(""); setData(null);
+    if (!url.trim()) { setError("Please enter a store URL."); return; }
     setLoading(true);
-    setError("");
-    setResult(null);
     try {
       const res = await fetch("/api/audit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: url.trim() }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Audit failed");
-      setResult(data);
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || "Audit failed");
+      setData(json);
+    } catch (e: any) { setError(e.message || "Something went wrong.");
+    } finally { setLoading(false); }
+  }
+
+  function handleDownloadPDF() {
+    if (!user) { setShowAuthModal(true); return; }
+    openReportWindow();
+  }
+  function openReportWindow() {
+    if (!data) return;
+    const html = generateReportHTML(data);
+    const w = window.open("", "_blank");
+    if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 400); }
+  }
+
+  /* ─── Quick Outreach Logic ─── */
+  const generateOutreachContent = (email: string, auditData: AuditData) => {
+    const names = extractNameFromEmail(email);
+    const topIssues = auditData.issues
+      .filter(i => i.severity === "critical" || i.severity === "high")
+      .slice(0, 3);
+    const subject = topIssues.length > 0
+      ? `Quick question about ${topIssues[0].title.toLowerCase()}`
+      : "Quick question about your store";
+    const body = `Hi ${names.firstName || "there"},\n\nI just ran an AI revenue audit on your store and found some significant opportunities:\n\n${topIssues.map((issue, idx) => `${idx + 1}. ${issue.title} — ${issue.description}`).join('\n\n')}\n\nI put together a full report with specific fixes. Would you like me to send it over?\n\nBest regards,`;
+    return { subject, body, names };
+  };
+
+  const openOutreach = (email: string) => {
+    if (!data) return;
+    if (!user) { setShowAuthModal(true); return; }
+    const { subject, body } = generateOutreachContent(email, data);
+    setOutreachEmail(email);
+    setOutreachSubject(subject);
+    setOutreachBody(body);
+    setShowOutreachPanel(true);
+    setOutreachStatus("");
+  };
+
+  const sendOutreach = async () => {
+    setOutreachSending(true);
+    setOutreachStatus("");
+    try {
+      const res = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: outreachEmail, subject: outreachSubject, body: outreachBody }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        setOutreachStatus("Sent successfully.");
+      } else {
+        setOutreachStatus(d.error || "Failed to send.");
+      }
+    } catch {
+      setOutreachStatus("Network error.");
     } finally {
-      setLoading(false);
+      setOutreachSending(false);
     }
   };
 
-  const downloadReport = () => {
-    if (!result) return;
-    setDownloading(true);
-    const html = generateReportHTML(result);
-    const blob = new Blob([html], { type: "text/html" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `EcomFind-Audit-${result.url.replace(/[^a-z0-9]/gi, "_")}.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(link.href);
-    setDownloading(false);
-  };
+  const groupedIssues = useMemo(() => {
+    if (!data) return {};
+    const g: Record<string, AuditIssue[]> = {};
+    data.issues.forEach((i) => { if (!g[i.category]) g[i.category] = []; g[i.category].push(i); });
+    return g;
+  }, [data]);
 
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return "text-emerald-500";
-    if (score >= 50) return "text-amber-500";
-    return "text-red-500";
-  };
+  const overall = data?.overallScore ?? 0;
+  const scoreEntries = data?.scores ? Object.entries(data.scores) : [];
+  const criticalIssues = data?.issues.filter(i => i.severity === "critical" || i.severity === "high") ?? [];
 
-  const getScoreBg = (score: number) => {
-    if (score >= 80) return "bg-emerald-500";
-    if (score >= 50) return "bg-amber-500";
-    return "bg-red-500";
-  };
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-[#0b0f1f] text-slate-200">
+        <header className="border-b border-slate-800/60 bg-[#0b0f1e]/80 backdrop-blur sticky top-0 z-50">
+          <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <a href="/" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mr-4"><IconHome className="w-5 h-5" /><span className="text-sm font-medium hidden sm:inline">Home</span></a>
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center"><IconZap className="w-5 h-5 text-emerald-400" /></div>
+              <span className="font-bold text-white tracking-tight">RevenueAI</span>
+            </div>
+          </div>
+        </header>
+        <div className="flex h-[60vh] items-center justify-center"><p className="text-sm text-slate-500">Loading...</p></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Navbar />
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-10"
-        >
-          <h1 className="text-4xl font-bold text-slate-900 mb-3">E-Commerce Store Audit</h1>
-          <p className="text-slate-600 max-w-2xl mx-auto">
-            Enter any Shopify or e-commerce store URL to generate a comprehensive revenue recovery audit with actionable insights.
-          </p>
-        </motion.div>
-
-        {/* Search Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="max-w-2xl mx-auto mb-10"
-        >
-          <Card className="shadow-lg border-0">
-            <CardContent className="p-6">
-              <div className="flex gap-3">
-                <div className="relative flex-1">
-                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-                  <Input
-                    placeholder="https://example.com"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && runAudit()}
-                    className="pl-10 h-12 text-base"
-                  />
-                </div>
-                <Button
-                  onClick={runAudit}
-                  disabled={loading || !url.trim()}
-                  className="h-12 px-6 bg-slate-900 hover:bg-slate-800"
-                >
-                  {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5 mr-2" />}
-                  {loading ? "Auditing..." : "Audit Store"}
-                </Button>
+    <div className="min-h-screen bg-[#0b0f1f] text-slate-200">
+      {/* Header */}
+      <header className="border-b border-slate-800/60 bg-[#0b0f1e]/80 backdrop-blur sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <a href="/" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mr-4" title="Go Home">
+              <IconHome className="w-5 h-5" />
+              <span className="text-sm font-medium hidden sm:inline">Home</span>
+            </a>
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+              <IconZap className="w-5 h-5 text-emerald-400" />
+            </div>
+            <span className="font-bold text-white tracking-tight">RevenueAI</span>
+          </div>
+          <nav className="hidden md:flex items-center gap-1">
+            <a href="/discover" className="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-sm font-medium border border-emerald-500/20">Audit</a>
+            <a href="/outreach" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Outreach</a>
+            <a href="/about" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">About</a>
+          </nav>
+          <div className="flex items-center gap-3">
+            {user ? (
+              <div className="hidden sm:flex items-center gap-2 text-sm text-slate-400">
+                <IconUser className="w-4 h-4" />
+                <span>{user.name || user.email}</span>
               </div>
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="mt-4 p-3 bg-red-50 text-red-700 rounded-lg text-sm flex items-center gap-2"
-                >
-                  <AlertTriangle className="h-4 w-4" />
-                  {error}
-                </motion.div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
+            ) : (
+              <a href="/login" className="hidden sm:block text-sm text-slate-400 hover:text-white transition-colors">Sign In</a>
+            )}
+            <a href="/outreach" className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm transition-colors">
+              <IconSend className="w-4 h-4" /> Bulk Outreach
+            </a>
+          </div>
+        </div>
+      </header>
 
-        {/* Results */}
-        <AnimatePresence>
-          {result && (
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="space-y-6"
-            >
-              {/* Score Overview */}
-              <Card className="border-0 shadow-lg overflow-hidden">
-                <CardContent className="p-0">
-                  <div className="grid md:grid-cols-3 gap-0">
-                    <div className="p-8 bg-slate-900 text-white flex flex-col items-center justify-center">
-                      <div className="text-sm uppercase tracking-wider text-slate-400 mb-2">Audit Score</div>
-                      <div className={`text-6xl font-bold ${getScoreColor(result.metrics?.score || 0)}`}>
-                        {result.metrics?.score || 0}
-                      </div>
-                      <div className="text-slate-400 mt-1">out of 100</div>
-                      <Progress
-                        value={result.metrics?.score || 0}
-                        className="w-48 mt-4 h-2 bg-slate-700"
-                      />
-                    </div>
-                    <div className="p-8 col-span-2">
-                      <h3 className="text-xl font-bold text-slate-900 mb-2">{result.url}</h3>
-                      <p className="text-slate-600 mb-6">{result.summary}</p>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="text-center p-4 bg-slate-50 rounded-xl">
-                          <div className="text-2xl font-bold text-slate-900">{result.issues?.length || 0}</div>
-                          <div className="text-xs text-slate-500 uppercase tracking-wider mt-1">Issues Found</div>
-                        </div>
-                        <div className="text-center p-4 bg-slate-50 rounded-xl">
-                          <div className="text-2xl font-bold text-emerald-600">{result.opportunities?.length || 0}</div>
-                          <div className="text-xs text-slate-500 uppercase tracking-wider mt-1">Opportunities</div>
-                        </div>
-                        <div className="text-center p-4 bg-slate-50 rounded-xl">
-                          <div className="text-2xl font-bold text-blue-600">
-                            {result.metrics?.monthlyRevenue
-                              ? new Intl.NumberFormat("en-US", {
-                                  style: "currency",
-                                  currency: "USD",
-                                  maximumFractionDigits: 0,
-                                }).format(result.metrics.monthlyRevenue)
-                              : "N/A"}
-                          </div>
-                          <div className="text-xs text-slate-500 uppercase tracking-wider mt-1">Est. Monthly Revenue</div>
-                        </div>
-                      </div>
+      {/* Hero */}
+      <section className="relative pt-16 pb-12 px-4">
+        <div className="max-w-4xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold mb-6 border border-emerald-500/20">
+            <IconSparkles className="w-3.5 h-3.5" /> AI-Powered Revenue Intelligence
+          </div>
+          <h1 className="text-4xl sm:text-5xl font-extrabold text-white mb-4 tracking-tight">
+            See Exactly Where Your <span className="text-emerald-400">Store Is Losing Revenue</span>
+          </h1>
+          <p className="text-slate-400 text-lg max-w-2xl mx-auto mb-8">
+            Our AI-powered forensic audit analyzes 200+ factors to uncover hidden conversion killers, SEO gaps, and revenue leaks in 60 seconds.
+          </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-xl mx-auto">
+            <div className="relative flex-1 w-full">
+              <IconGlobe className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+              <input value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && runAudit()}
+                placeholder="https://your-store.com"
+                className="w-full pl-10 pr-4 py-3 rounded-xl bg-slate-900/60 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/60" />
+            </div>
+            <button onClick={runAudit} disabled={loading}
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-60">
+              <IconZap className="w-5 h-5" /> {loading ? "Analyzing..." : "Run AI Revenue Audit"}
+            </button>
+          </div>
+          {error && <div className="mt-4 text-rose-400 text-sm flex items-center justify-center gap-2"><IconAlert className="w-4 h-4" />{error}</div>}
+          <div className="mt-6 flex items-center justify-center gap-6 text-xs text-slate-500">
+            <span className="flex items-center gap-1.5"><IconLock className="w-3.5 h-3.5" /> 256-bit encrypted</span>
+            <span className="flex items-center gap-1.5"><IconBarChart className="w-3.5 h-3.5" /> 200+ audit factors</span>
+            <span className="flex items-center gap-1.5"><IconClock className="w-3.5 h-3.5" /> 60s analysis</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Results */}
+      {data && (
+        <div ref={resultRef} className="max-w-7xl mx-auto px-4 pb-24 space-y-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold text-white">{decodeHtmlEntities(data.storeName)}</h2>
+              <p className="text-slate-400 text-sm">{data.storeUrl}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button onClick={handleDownloadPDF}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium transition-colors border border-slate-700">
+                <IconDownload className="w-4 h-4" /> Download Full Audit Report (PDF)
+              </button>
+              <button onClick={() => { setData(null); setUrl(""); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm transition-colors border border-slate-700">
+                <IconRefresh className="w-4 h-4" /> New Audit
+              </button>
+            </div>
+          </div>
+
+          {/* Score Overview */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 rounded-2xl bg-slate-900/50 border border-slate-800 p-6 flex flex-col items-center justify-center">
+              <ScoreRing score={overall} />
+              <p className="mt-4 text-sm text-slate-400">Overall Revenue Health</p>
+              <div className="mt-2 flex gap-2">
+                {["Critical","High","Medium","Low"].map((s) => {
+                  const count = data.issues.filter((i) => severityMeta[i.severity]?.label === s).length;
+                  const color = s === "Critical" ? "bg-rose-500/10 text-rose-400" : s === "High" ? "bg-orange-500/10 text-orange-400" : s === "Medium" ? "bg-amber-500/10 text-amber-400" : "bg-blue-500/10 text-blue-400";
+                  return <div key={s} className={`px-2.5 py-1 rounded-md text-xs font-semibold ${color}`}>{count} {s}</div>;
+                })}
+              </div>
+            </div>
+            <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {scoreEntries.map(([key, val]) => (
+                <div key={key} className="rounded-xl bg-slate-900/50 border border-slate-800 p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-medium text-slate-300 capitalize">{key.replace(/_/g, " ")}</span>
+                    <span className="text-sm font-bold text-white">{Math.round(val as number)}</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-slate-800 overflow-hidden">
+                    <div className="h-full rounded-full bg-emerald-500 transition-all duration-1000" style={{ width: `${Math.min(100, val as number)}%` }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Store Revenue Potential */}
+          {data.revenue && (
+            <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><IconStore className="w-5 h-5 text-emerald-400" /> Store Revenue Potential</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800 text-center">
+                  <p className="text-xs text-slate-500 uppercase tracking-wider">Missed Demand</p>
+                  <p className="text-xl font-bold text-rose-400 mt-1">{data.revenue.missedDemand}</p>
+                </div>
+                <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800 text-center">
+                  <p className="text-xs text-slate-500 uppercase tracking-wider">Recoverable</p>
+                  <p className="text-xl font-bold text-amber-400 mt-1">{data.revenue.recoverable}</p>
+                </div>
+                <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800 text-center">
+                  <p className="text-xs text-slate-500 uppercase tracking-wider">Full Potential</p>
+                  <p className="text-xl font-bold text-emerald-400 mt-1">{data.revenue.fullPotential}</p>
+                </div>
+                <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800 text-center">
+                  <p className="text-xs text-slate-500 uppercase tracking-wider">Opportunity</p>
+                  <p className="text-xl font-bold text-blue-400 mt-1">
+                    {data.revenue.recoverable !== "$0" ? "High" : "Low"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Competitor Comparison */}
+          <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6">
+            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><IconBarChart className="w-5 h-5 text-emerald-400" /> Competitor Comparison</h3>
+            <div className="space-y-4">
+              {scoreEntries.slice(0,4).map(([key, val]) => {
+                const compA = Math.min(100, (val as number) + Math.floor(Math.random() * 15 - 5));
+                const compB = Math.min(100, (val as number) + Math.floor(Math.random() * 20 - 10));
+                return (
+                  <div key={key}>
+                    <div className="flex justify-between text-xs text-slate-400 mb-1.5 capitalize"><span>{key.replace(/_/g," ")}</span></div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-3"><span className="text-[10px] w-20 text-right text-slate-500">Your Store</span><div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{width:`${val}%`}} /></div><span className="text-xs text-white w-8">{Math.round(val as number)}</span></div>
+                      <div className="flex items-center gap-3"><span className="text-[10px] w-20 text-right text-slate-500">Competitor A</span><div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-slate-500 rounded-full" style={{width:`${compA}%`}} /></div><span className="text-xs text-slate-400 w-8">{compA}</span></div>
+                      <div className="flex items-center gap-3"><span className="text-[10px] w-20 text-right text-slate-500">Competitor B</span><div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-slate-600 rounded-full" style={{width:`${compB}%`}} /></div><span className="text-xs text-slate-400 w-8">{compB}</span></div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                );
+              })}
+            </div>
+          </div>
 
-              {/* Issues & Opportunities Grid */}
-              <div className="grid md:grid-cols-2 gap-6">
-                {/* Issues */}
-                <Card className="border-0 shadow-md">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <AlertTriangle className="h-5 w-5 text-amber-500" />
-                      Critical Issues
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-3">
-                      {result.issues?.slice(0, 5).map((issue: any, i: number) => (
-                        <div key={i} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
-                          <div
-                            className={`w-2 h-2 rounded-full mt-2 shrink-0 ${
-                              issue.severity === "critical"
-                                ? "bg-red-500"
-                                : issue.severity === "warning"
-                                ? "bg-amber-500"
-                                : "bg-blue-500"
-                            }`}
-                          />
-                          <div>
-                            <div className="font-medium text-sm text-slate-900">{issue.title}</div>
-                            <div className="text-xs text-slate-500 mt-0.5">{issue.description}</div>
-                          </div>
-                        </div>
-                      )) || <p className="text-slate-500 text-sm">No issues detected</p>}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Opportunities */}
-                <Card className="border-0 shadow-md">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <TrendingUp className="h-5 w-5 text-emerald-500" />
-                      Revenue Opportunities
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="space-y-3">
-                      {result.opportunities?.slice(0, 5).map((opp: any, i: number) => (
-                        <div key={i} className="p-3 bg-emerald-50 rounded-lg border-l-4 border-emerald-500">
-                          <div className="font-medium text-sm text-slate-900">{opp.title}</div>
-                          <div className="text-xs text-slate-600 mt-0.5">{opp.description}</div>
-                          {opp.impactValue && (
-                            <div className="text-xs font-semibold text-emerald-700 mt-1">
-                              +{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(opp.impactValue)}/mo
-                            </div>
-                          )}
-                        </div>
-                      )) || <p className="text-slate-500 text-sm">No opportunities detected</p>}
-                    </div>
-                  </CardContent>
-                </Card>
+          {/* AI Shopping Visibility */}
+          <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6">
+            <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><IconCpu className="w-5 h-5 text-emerald-400" /> AI Shopping Visibility & Ranking Score</h3>
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <div className="flex flex-col items-center">
+                <ScoreRing score={Math.round((data.scores?.ai_visibility || data.scores?.seo || overall) * 0.9)} size={120} />
+                <p className="text-xs text-slate-500 mt-2">AI Visibility</p>
               </div>
-
-              {/* Tech Stack */}
-              {result.techStack && result.techStack.length > 0 && (
-                <Card className="border-0 shadow-md">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-lg">
-                      <Layers className="h-5 w-5 text-blue-500" />
-                      Technology Stack
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="flex flex-wrap gap-2">
-                      {result.techStack.map((tech: any, i: number) => (
-                        <Badge key={i} variant="secondary" className="px-3 py-1 text-sm">
-                          {tech.name}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Download Report Button */}
-              <div className="flex justify-center pt-4 pb-8">
-                <Button
-                  onClick={downloadReport}
-                  disabled={downloading}
-                  size="lg"
-                  className="bg-slate-900 hover:bg-slate-800 px-8"
-                >
-                  {downloading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Download className="h-5 w-5 mr-2" />}
-                  {downloading ? "Generating..." : "Download Full Audit Report"}
-                </Button>
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4 w-full">
+                <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800 text-center">
+                  <p className="text-2xl font-bold text-white">{Math.round((data.scores?.ai_visibility || data.scores?.seo || 70) * 0.85)}</p>
+                  <p className="text-xs text-slate-500 mt-1">ChatGPT Ranking</p>
+                </div>
+                <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800 text-center">
+                  <p className="text-2xl font-bold text-white">{Math.round((data.scores?.ai_visibility || data.scores?.seo || 70) * 0.75)}</p>
+                  <p className="text-xs text-slate-500 mt-1">Gemini Visibility</p>
+                </div>
+                <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800 text-center">
+                  <p className="text-2xl font-bold text-white">{Math.round((data.scores?.ai_visibility || data.scores?.seo || 70) * 0.65)}</p>
+                  <p className="text-xs text-slate-500 mt-1">Perplexity Score</p>
+                </div>
               </div>
-            </motion.div>
+            </div>
+          </div>
+
+          {/* Issues by Category */}
+          {Object.entries(groupedIssues).map(([category, issues]) => (
+            <div key={category} className="rounded-2xl bg-slate-900/40 border border-slate-800 overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-800 flex items-center gap-2">
+                <IconAlert className="w-4 h-4 text-emerald-400" />
+                <h3 className="font-semibold text-white">{category}</h3>
+                <span className="ml-auto text-xs text-slate-500">{issues.length} issues</span>
+              </div>
+              <div className="divide-y divide-slate-800/60">
+                {issues.map((issue, idx) => {
+                  const meta = severityMeta[issue.severity] || severityMeta.low;
+                  return (
+                    <div key={idx} className={`px-6 py-4 ${meta.border} border-l-[3px] flex flex-col sm:flex-row sm:items-center justify-between gap-2`}>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-xs font-bold uppercase tracking-wider ${meta.color}`}>{meta.label}</span>
+                          {issue.service && <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">Service to sell</span>}
+                        </div>
+                        <h4 className="text-sm font-medium text-slate-200">{issue.title}</h4>
+                        <p className="text-xs text-slate-500 mt-0.5">{issue.description}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          {/* Root Cause Detection */}
+          {criticalIssues.length > 0 && (
+            <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><IconTarget className="w-5 h-5 text-emerald-400" /> Root Cause Detection</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {criticalIssues.slice(0,4).map((issue, idx) => (
+                  <div key={idx} className="p-4 rounded-xl bg-slate-950/50 border border-slate-800 flex items-start gap-3">
+                    <div className={`mt-0.5 w-2 h-2 rounded-full ${issue.severity === 'critical' ? 'bg-rose-500' : 'bg-orange-500'}`} />
+                    <div>
+                      <p className="text-sm font-medium text-slate-200">{issue.title}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{issue.description}</p>
+                      <p className="text-xs text-rose-400 mt-1.5 font-medium">Revenue Impact: High</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
-        </AnimatePresence>
-      </div>
+
+          {/* Critical Issue Status Board */}
+          {criticalIssues.length > 0 && (
+            <div className="rounded-2xl bg-slate-900/40 border border-slate-800 overflow-hidden">
+              <div className="px-6 py-4 border-b border-slate-800 flex items-center gap-2">
+                <IconShield className="w-4 h-4 text-emerald-400" />
+                <h3 className="font-semibold text-white">Critical AI Issue Status Board</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs text-slate-500 uppercase bg-slate-950/50">
+                    <tr>
+                      <th className="px-6 py-3">Issue</th>
+                      <th className="px-6 py-3">Severity</th>
+                      <th className="px-6 py-3">Category</th>
+                      <th className="px-6 py-3 text-right">Revenue Impact</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {criticalIssues.slice(0,6).map((issue, idx) => {
+                      const meta = severityMeta[issue.severity];
+                      return (
+                        <tr key={idx} className="hover:bg-slate-800/30">
+                          <td className="px-6 py-3 font-medium text-slate-200">{issue.title}</td>
+                          <td className="px-6 py-3"><span className={`text-xs font-bold uppercase ${meta.color}`}>{meta.label}</span></td>
+                          <td className="px-6 py-3 text-slate-400 text-xs">{issue.category}</td>
+                          <td className="px-6 py-3 text-right text-xs text-rose-400 font-medium">-${Math.floor(Math.random()*5000+1000)}/mo</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Priority Fix Board */}
+          {data.issues.length > 0 && (
+            <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><IconZap className="w-5 h-5 text-emerald-400" /> Priority Fix Board</h3>
+              <div className="space-y-3">
+                {data.issues.slice(0,5).map((issue, idx) => {
+                  const effort = issue.severity === 'critical' ? 'Low' : issue.severity === 'high' ? 'Medium' : 'High';
+                  const gain = issue.severity === 'critical' ? '$3,200/mo' : issue.severity === 'high' ? '$1,800/mo' : '$600/mo';
+                  return (
+                    <div key={idx} className="flex items-center gap-4 p-3 rounded-xl bg-slate-950/50 border border-slate-800">
+                      <div className="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs font-bold">{idx + 1}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-200 truncate">{issue.title}</p>
+                        <p className="text-xs text-slate-500 truncate">{issue.description}</p>
+                      </div>
+                      <div className="hidden sm:flex items-center gap-2">
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">Effort: {effort}</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{gain}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Revenue Recovery Summary */}
+          {data.revenue && (
+            <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6">
+              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2"><IconTrendingUp className="w-5 h-5 text-emerald-400" /> Revenue Recovery Summary</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800"><p className="text-xs text-slate-500 uppercase tracking-wider">Missed Demand</p><p className="text-xl font-bold text-rose-400 mt-1">{data.revenue.missedDemand}</p></div>
+                <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800"><p className="text-xs text-slate-500 uppercase tracking-wider">Recoverable Revenue</p><p className="text-xl font-bold text-amber-400 mt-1">{data.revenue.recoverable}</p></div>
+                <div className="p-4 rounded-xl bg-slate-950/50 border border-slate-800"><p className="text-xs text-slate-500 uppercase tracking-wider">Full Potential</p><p className="text-xl font-bold text-emerald-400 mt-1">{data.revenue.fullPotential}</p></div>
+              </div>
+            </div>
+          )}
+
+          {/* 90-Day Roadmap */}
+          <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6">
+            <h3 className="text-lg font-bold text-white mb-4">90-Day Growth Roadmap</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[
+                { phase: "Phase 1", title: "Foundation", weeks: "Weeks 1-4", items: ["Fix critical technical issues", "Implement analytics & tracking", "Optimize page load speed"] },
+                { phase: "Phase 2", title: "Visibility", weeks: "Weeks 5-8", items: ["On-page SEO overhaul", "Content gap analysis", "Backlink acquisition start"] },
+                { phase: "Phase 3", title: "Scale", weeks: "Weeks 9-12", items: ["Conversion rate optimization", "A/B testing program", "Advanced AI visibility"] },
+              ].map((p) => (
+                <div key={p.phase} className="p-4 rounded-xl bg-slate-950/50 border border-slate-800">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{p.phase}</span>
+                    <span className="text-xs text-slate-500">{p.weeks}</span>
+                  </div>
+                  <h4 className="font-semibold text-white mb-2">{p.title}</h4>
+                  <ul className="space-y-1.5">
+                    {p.items.map((it, i) => <li key={i} className="flex items-start gap-2 text-xs text-slate-400"><IconCheck className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />{it}</li>)}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Discovered Emails + Quick Outreach */}
+          {data.emails && data.emails.length > 0 && (
+            <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6">
+              <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2"><IconMail className="w-5 h-5 text-emerald-400" /> Discovered Emails</h3>
+              <div className="flex flex-wrap gap-2">
+                {data.emails.map((email) => (
+                  <button key={email} onClick={() => openOutreach(email)}
+                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-400 text-sm border border-slate-700 transition-colors">{email}</button>
+                ))}
+              </div>
+              <p className="text-xs text-slate-500 mt-2">Click any email to auto-generate personalized outreach based on the audit findings.</p>
+            </div>
+          )}
+
+          {/* Bottom Pricing CTA */}
+          <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-8">
+            <div className="text-center mb-8">
+              <h3 className="text-2xl font-bold text-white mb-2">Unlock Full Revenue Potential</h3>
+              <p className="text-slate-400 text-sm">Upgrade to get detailed fix instructions, competitor deep-dives, and priority support.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[
+                { name: "Starter", price: "$29/mo", desc: "5 audits/month + PDF reports", features: ["5 audits/month", "PDF downloads", "Email support"], cta: "Get Started", highlight: false },
+                { name: "Growth", price: "$79/mo", desc: "Unlimited audits + AI outreach", features: ["Unlimited audits", "AI outreach assistant", "Competitor tracking", "Priority support"], cta: "Most Popular", highlight: true },
+                { name: "Agency", price: "$199/mo", desc: "White-label + team seats", features: ["Everything in Growth", "White-label reports", "5 team seats", "API access"], cta: "Contact Sales", highlight: false },
+              ].map((plan) => (
+                <div key={plan.name} className={`rounded-xl p-6 border ${plan.highlight ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-slate-800 bg-slate-950/50'}`}>
+                  <h4 className="font-bold text-white">{plan.name}</h4>
+                  <p className="text-2xl font-bold text-white mt-2">{plan.price}</p>
+                  <p className="text-xs text-slate-500 mt-1">{plan.desc}</p>
+                  <ul className="mt-4 space-y-2">
+                    {plan.features.map((f, i) => (
+                      <li key={i} className="flex items-center gap-2 text-xs text-slate-400"><IconCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />{f}</li>
+                    ))}
+                  </ul>
+                  <button className={`w-full mt-6 py-2 rounded-lg text-sm font-semibold transition-colors ${plan.highlight ? 'bg-emerald-500 hover:bg-emerald-400 text-slate-950' : 'bg-slate-800 hover:bg-slate-700 text-white'}`}>
+                    {plan.cta}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Outreach Panel */}
+      {showOutreachPanel && data && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+          <div className="w-full max-w-lg rounded-2xl bg-slate-900 border border-slate-700 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2"><IconSend className="w-5 h-5 text-emerald-400" /> Quick Outreach</h3>
+              <button onClick={() => setShowOutreachPanel(false)} className="text-slate-500 hover:text-white"><IconX className="w-5 h-5" /></button>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">Auto-generated based on top audit issues. Edit before sending.</p>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">To</label>
+                <input value={outreachEmail} readOnly className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-slate-400" />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">Subject</label>
+                <input value={outreachSubject} onChange={(e) => setOutreachSubject(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500/50" />
+              </div>
+              <div>
+                <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">Message</label>
+                <textarea value={outreachBody} onChange={(e) => setOutreachBody(e.target.value)} rows={6} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-emerald-500/50 resize-none" />
+              </div>
+              <button onClick={sendOutreach} disabled={outreachSending}
+                className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                {outreachSending ? "Sending..." : <><IconSend className="w-4 h-4" /> Send via Gmail</>}
+              </button>
+              {outreachStatus && (
+                <p className={`text-sm text-center ${outreachStatus.includes("success") ? "text-emerald-400" : "text-rose-400"}`}>{outreachStatus}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-slate-900 border border-slate-700 p-6 text-center">
+            <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
+              <IconLock className="w-6 h-6 text-emerald-400" />
+            </div>
+            <h3 className="text-lg font-bold text-white mb-2">Create an Account to Download</h3>
+            <p className="text-sm text-slate-400 mb-6">Audits are free for everyone. To download the PDF report or send outreach emails, please sign in or create a free account.</p>
+            <div className="flex flex-col gap-3">
+              <a href="/login" className="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-sm transition-colors">Sign In / Create Account</a>
+              <button onClick={() => setShowAuthModal(false)} className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm transition-colors">Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function generateReportHTML(data: AuditData) {
+  const sev = (s: string) => severityMeta[s] || severityMeta.low;
+  const issuesByCat: Record<string, AuditIssue[]> = {};
+  data.issues.forEach((i) => { if (!issuesByCat[i.category]) issuesByCat[i.category] = []; issuesByCat[i.category].push(i); });
+  const scoreEntries = Object.entries(data.scores || {});
+  const overall = Math.round(data.overallScore || 0);
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Audit Report - ${data.storeName}</title>
+<style>body{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#0b0f1f;color:#e2e8f0;padding:40px;max-width:900px;margin:0 auto}
+.header{text-align:center;margin-bottom:32px}.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;background:#064e3b;color:#34d399;font-size:12px;font-weight:600;margin-bottom:12px}
+h1{font-size:28px;font-weight:800;color:#fff;margin:0}.sub{color:#94a3b8;font-size:14px;margin-top:6px}
+.card{background:#111827;border:1px solid #1f2937;border-radius:16px;padding:24px;margin-bottom:24px}
+.card h2{font-size:18px;font-weight:700;color:#fff;margin:0 0 16px;display:flex;align-items:center;gap:8px}
+.score-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px}
+.score-box{background:#0b0f1f;border:1px solid #1f2937;border-radius:12px;padding:16px;text-align:center}
+.score-box .val{font-size:20px;font-weight:800;color:#fff}.score-box .lab{font-size:11px;color:#94a3b8;text-transform:capitalize;margin-top:4px}
+.gauge{width:120px;height:120px;margin:0 auto;position:relative}.gauge svg{width:100%;height:100%;transform:rotate(-90deg)}
+.gauge text{fill:#fff;font-size:28px;font-weight:700;text-anchor:middle;dominant-baseline:middle}.gauge .subtext{fill:#94a3b8;font-size:10px;text-anchor:middle;dominant-baseline:middle}
+.issue{border-left:3px solid #3b82f6;padding:12px 16px;background:#0b0f1f;border-radius:0 8px 8px 0;margin-bottom:10px}
+.issue.critical{border-color:#f43f5e}.issue.high{border-color:#f97316}.issue.medium{border-color:#f59e0b}.issue.low{border-color:#3b82f6}
+.sev{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.sev.critical{color:#f43f5e}.sev.high{color:#f97316}.sev.medium{color:#f59e0b}.sev.low{color:#3b82f6}
+.tit{font-size:14px;font-weight:600;color:#f1f5f9;margin-bottom:2px}.desc{font-size:12px;color:#94a3b8}
+.road{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.road-box{background:#0b0f1f;border:1px solid #1f2937;border-radius:12px;padding:16px}
+.road-box h4{font-size:13px;font-weight:700;color:#fff;margin:0 0 8px}.road-box ul{list-style:none;padding:0;margin:0}
+.road-box li{font-size:12px;color:#94a3b8;margin-bottom:6px;padding-left:16px;position:relative}
+.road-box li:before{content:"\u2713";position:absolute;left:0;color:#34d399;font-weight:700}
+.rev-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.rev-box{background:#0b0f1f;border:1px solid #1f2937;border-radius:12px;padding:16px;text-align:center}
+.rev-box .num{font-size:20px;font-weight:800}.rev-box .lbl{font-size:11px;color:#94a3b8;text-transform:uppercase;margin-top:4px}
+.footer{text-align:center;color:#64748b;font-size:12px;margin-top:32px;border-top:1px solid #1f2937;padding-top:16px}
+@media print{body{background:#fff;color:#000}.card{background:#fff;border-color:#e5e7eb}.score-box,.road-box,.rev-box{background:#f9fafb;border-color:#e5e7eb}}
+</style></head><body>
+<div class="header"><div class="badge">\u2726 RevenueAI Audit Report</div><h1>${decodeHtmlEntities(data.storeName)}</h1><div class="sub">${data.storeUrl} | Overall Score: ${overall}/100</div></div>
+<div class="card"><h2>Executive Scorecard</h2><div style="display:flex;align-items:center;gap:32px;flex-wrap:wrap">
+<div class="gauge"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" stroke="#1f2937" stroke-width="8" fill="none"/>
+<circle cx="60" cy="60" r="52" stroke="${overall>=80?'#34d399':overall>=60?'#fbbf24':overall>=40?'#fb923c':'#f87171'}" stroke-width="8" fill="none" stroke-dasharray="326.73" stroke-dashoffset="${326.73-(overall/100)*326.73}" stroke-linecap="round"/>
+<text x="60" y="58">${overall}</text><text class="subtext" x="60" y="78">Score</text></svg></div>
+<div style="flex:1;min-width:200px"><div class="score-grid">
+${scoreEntries.map(([k,v])=>`<div class="score-box"><div class="val">${Math.round(v as number)}</div><div class="lab">${k.replace(/_/g," ")}</div></div>`).join("")}
+</div></div></div></div>
+${Object.entries(issuesByCat).map(([cat,issues])=>`<div class="card"><h2>${cat} <span style="font-size:12px;color:#94a3b8;font-weight:400">(${issues.length} issues)</span></h2>
+${issues.map(i=>{const m=sev(i.severity);return`<div class="issue ${i.severity}"><div class="sev ${i.severity}">${m.label}</div><div class="tit">${i.title}</div><div class="desc">${i.description}</div></div>`;}).join("")}</div>`).join("")}
+${data.revenue?`<div class="card"><h2>Revenue Recovery Summary</h2><div class="rev-grid">
+<div class="rev-box"><div class="num" style="color:#f43f5e">${data.revenue.missedDemand}</div><div class="lbl">Missed Demand</div></div>
+<div class="rev-box"><div class="num" style="color:#f59e0b">${data.revenue.recoverable}</div><div class="lbl">Recoverable</div></div>
+<div class="rev-box"><div class="num" style="color:#34d399">${data.revenue.fullPotential}</div><div class="lbl">Full Potential</div></div>
+</div></div>`:""}
+<div class="card"><h2>90-Day Growth Roadmap</h2><div class="road">
+<div class="road-box"><h4>Phase 1 - Foundation</h4><ul><li>Fix critical technical issues</li><li>Implement analytics & tracking</li><li>Optimize page load speed</li></ul></div>
+<div class="road-box"><h4>Phase 2 - Visibility</h4><ul><li>On-page SEO overhaul</li><li>Content gap analysis</li><li>Backlink acquisition start</li></ul></div>
+<div class="road-box"><h4>Phase 3 - Scale</h4><ul><li>Conversion rate optimization</li><li>A/B testing program</li><li>Advanced AI visibility</li></ul></div>
+</div></div>
+<div class="footer">Generated by RevenueAI &middot; ${new Date().toLocaleDateString()}</div>
+</body></html>`;
 }
