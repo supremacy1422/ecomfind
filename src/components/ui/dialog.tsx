@@ -3,7 +3,7 @@
 import * as React from "react" 
 import { cn } from "@/lib/utils" 
  
-const DialogContext = React.createContext<{ open: boolean; onOpenChange: (open: boolean) => void }>| null>(null) 
+const DialogContext = React.createContext<{ open: boolean; onOpenChange: (open: boolean) => void }| null>(null) 
  
 function useDialog() { 
   const ctx = React.useContext(DialogContext) 
@@ -32,10 +32,26 @@ const Dialog = ({ children, open, onOpenChange }: { children: React.ReactNode; o
   ) 
 } 
  
-const DialogTrigger = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement>>(({ children, ...props }, ref) => { 
+interface DialogTriggerProps extends React.ButtonHTMLAttributes<HTMLButtonElement> { 
+  asChild?: boolean 
+} 
+ 
+const DialogTrigger = React.forwardRef<HTMLButtonElement, DialogTriggerProps>(({ children, asChild, ...props }, ref) => { 
   const { onOpenChange } = useDialog() 
+  const handleClick = () => onOpenChange(true) 
+ 
+  if (asChild && React.isValidElement(children)) { 
+    return React.cloneElement(children as React.ReactElement, { 
+      onClick: (e: React.MouseEvent) => { 
+        handleClick() 
+        ;(children.props as any).onClick?.(e) 
+      }, 
+      ref, 
+    }) 
+  } 
+ 
   return ( 
-    <button ref={ref} onClick={() => onOpenChange(true)} {...props}> 
+    <button ref={ref} onClick={handleClick} {...props}> 
       {children} 
     </button> 
   ) 
