@@ -1,0 +1,417 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+const SHOPIFY_PATTERNS = [
+  'myshopify.com',
+  'cdn.shopify.com',
+  'shopify.com',
+  'shopifycdn',
+  'Shopify.theme',
+  'window.Shopify',
+  'shopify-checkout'
+];
+
+const SEARCH_NICHES = [
+  'fashion', 'jewelry', 'home decor', 'beauty', 'fitness', 
+  'electronics', 'pets', 'food', 'baby', 'sports', 'skincare',
+  'watches', 'handbags', 'sneakers', 'furniture', 'organic'
+];
+
+// Pages to crawl for emails
+const DEEP_PAGES = [
+  '/pages/contact',
+  '/pages/contact-us',
+  '/pages/about',
+  '/pages/about-us',
+  '/pages/privacy-policy',
+  '/policies/privacy-policy',
+  '/pages/legal',
+  '/pages/terms',
+  '/pages/terms-of-service',
+  '/pages/return-policy',
+  '/pages/shipping-policy'
+];
+
+// KNOWN JUNK DOMAINS — reject immediately
+const JUNK_DOMAINS = [
+  'shopify.com', 'sitebuilderreport.com', 'pagefly.io', 
+  'storelab.app', 'boostifythemes.com', 'shopify.dev',
+  'help.shopify.com', 'apps.shopify.com', 'themes.shopify.com',
+  'experts.shopify.com', 'blog.shopify.com', 'news.shopify.com',
+  'shopify.com/partners', 'shopify.com/tools', 'shopify.com/enterprise',
+  'gempages.net', 'judge.me', 'loox.io', 'klaviyo.com',
+  'yotpo.com', 'privy.com', 'hotjar.com', 'google.com',
+  'facebook.com', 'instagram.com', 'tiktok.com', 'twitter.com'
+];
+
+// Google Custom Search
+async function searchGoogle(query: string, start = 1): Promise<string[]> {
+  const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
+  const cx = process.env.GOOGLE_SEARCH_CX;
+  if (!apiKey || !cx) return [];
+  
+  try {
+    const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${cx}&q=${encodeURIComponent(query)}&start=${start}&num=10`;
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    const data = await res.json();
+    if (!res.ok || !data.items) return [];
+    
+    return data.items
+      .map((item: any) => {
+        try {
+          const url = new URL(item.link);
+          return `${url.protocol}//${url.hostname}`;
+        } catch { return null; }
+      })
+      .filter((url: string | null): url is string => !!url);
+  } catch { return []; }
+}
+
+// SerpAPI multi-engine
+async function searchSerpAPI(query: string, engine = 'google'): Promise<string[]> {
+  const apiKey = process.env.SERPAPI_KEY;
+  if (!apiKey) return [];
+  
+  try {
+    const url = `https://serpapi.com/search?engine=${engine}&q=${encodeURIComponent(query)}&num=20&api_key=${apiKey}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    const data = await res.json();
+    if (!res.ok || data.error) return [];
+    
+    const results = data.organic_results || [];
+    return results
+      .map((item: any) => {
+        try {
+          const url = new URL(item.link);
+          return `${url.protocol}//${url.hostname}`;
+        } catch { return null; }
+      })
+      .filter((url: string | null): url is string => !!url);
+  } catch { return []; }
+}
+
+// Fetch page with timeout
+async function fetchPage(url: string): Promise<{ html: string; ok: boolean }> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+      }
+    });
+    clearTimeout(timeout);
+    if (!res.ok) return { html: '', ok: false };
+    return { html: await res.text(), ok: true };
+  } catch { return { html: '', ok: false }; }
+}
+
+// BULLETPROOF Shopify detection
+async function verifyShopify(storeUrl: string): Promise<{ isShopify: boolean; storeName: string; hasProducts: boolean; shopifyDomain: string }> {
+  try {
+    const { html, ok } = await fetchPage(storeUrl);
+    if (!ok) return { isShopify: false, storeName: '', hasProducts: false, shopifyDomain: '' };
+    
+    // STRICT checks — need at least 2 confirmations
+    const checks = {
+      hasShopifyJS: html.includes('window.Shopify') || html.includes('Shopify.shop') || html.includes('Shopify.theme'),
+      hasShopifyCDN: html.includes('cdn.shopify.com') || html.includes('cdn.shopifycdn.net'),
+      hasShopifyMeta: html.includes('generator" content="Shopify') || html.includes('shopify-section'),
+      hasCheckout: html.includes('checkout.shopify') || html.includes('/cart.js') || html.includes('/cart/add'),
+      hasMyShopify: storeUrl.includes('myshopify.com'),
+      hasProductSchema: html.includes('"@type":"Product"') || html.includes('schema.org/Product'),
+      hasStorefront: html.includes('shopify-buy') || html.includes('storefront-access-token')
+    };
+    
+    const score = Object.values(checks).filter(Boolean).length;
+    const isShopify = score >= 2 || checks.hasMyShopify;
+    
+    // Reject known non-store platforms
+    const rejectPatterns = [
+      'sitebuilderreport', 'pagefly', 'storelab', 'boostifythemes',
+      'shopify.com/partners', 'shopify.com/tools', 'help.shopify',
+      'apps.shopify.com', 'themes.shopify.com', 'experts.shopify',
+      'blog.shopify', 'news.shopify', 'shopify.com/enterprise',
+      'gempages', 'judge.me', 'loox.io', 'klaviyo.com'
+    ];
+    if (rejectPatterns.some(p => html.toLowerCase().includes(p) || storeUrl.includes(p))) {
+      return { isShopify: false, storeName: '', hasProducts: false, shopifyDomain: '' };
+    }
+    
+    const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+    const storeName = titleMatch ? titleMatch[1].replace(/\s*[-|]\s*.*$/, '').trim() : '';
+    
+    // Check for actual products
+    const hasProducts = html.includes('"@type":"Product"') || 
+                       html.includes('product-form') ||
+                       html.includes('data-product-id') ||
+                       (html.includes('/products/') && html.includes('price')) ||
+                       html.includes('Add to cart') ||
+                       html.includes('shopify-payment-button');
+    
+    const shopifyDomainMatch = html.match(/Shopify\.shop\s*=\s*"([^"]+)"/) || 
+                               html.match(/"myshopify_domain":"([^"]+)"/) ||
+                               html.match(/"shop_domain":"([^"]+)"/);
+    const shopifyDomain = shopifyDomainMatch ? shopifyDomainMatch[1] : '';
+    
+    return { isShopify, storeName, hasProducts, shopifyDomain };
+  } catch {
+    return { isShopify: false, storeName: '', hasProducts: false, shopifyDomain: '' };
+  }
+}
+
+// Extract ALL emails from HTML
+function extractEmailsFromHtml(html: string, baseDomain: string): string[] {
+  const emails: string[] = [];
+  const seen = new Set<string>();
+  const baseDomainLower = baseDomain.toLowerCase().replace(/^www\./, '');
+  
+  // Standard regex
+  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+  const matches = html.match(emailRegex) || [];
+  
+  // JSON-LD schema
+  const schemaRegex = /"email"\s*:\s*"([^"]+)"/gi;
+  let schemaMatch;
+  while ((schemaMatch = schemaRegex.exec(html)) !== null) {
+    matches.push(schemaMatch[1]);
+  }
+  
+  // mailto: links
+  const mailtoRegex = /mailto:([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/gi;
+  let mailtoMatch;
+  while ((mailtoMatch = mailtoRegex.exec(html)) !== null) {
+    matches.push(mailtoMatch[1]);
+  }
+  
+  // Obfuscated [at] / (at)
+  const obfuscatedRegex = /[a-zA-Z0-9._%+-]+\s*(?:\[at\]|\(at\)|\s+at\s+)[a-zA-Z0-9.-]+\.(?:com|net|org|io|co|us|uk)/gi;
+  const obfuscated = html.match(obfuscatedRegex) || [];
+  for (const o of obfuscated) {
+    const fixed = o.replace(/\s*\[at\]\s*/gi, '@').replace(/\s*\(at\)\s*/gi, '@').replace(/\s+at\s+/gi, '@');
+    if (fixed.includes('@')) matches.push(fixed);
+  }
+  
+  for (const email of matches) {
+    const clean = email.toLowerCase().trim();
+    const domain = clean.split('@')[1];
+    if (!domain) continue;
+    
+    // Skip image/file domains
+    const badDomains = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'cdn', 'cloudfront', 'shopify', 'sentry', 'google'];
+    if (badDomains.some(d => domain.includes(d))) continue;
+    
+    if (!seen.has(clean)) {
+      seen.add(clean);
+      emails.push(clean);
+    }
+  }
+  
+  // Sort: domain-matching first
+  return emails.sort((a, b) => {
+    const aDomain = a.split('@')[1] || '';
+    const bDomain = b.split('@')[1] || '';
+    const aMatches = aDomain.includes(baseDomainLower);
+    const bMatches = bDomain.includes(baseDomainLower);
+    if (aMatches && !bMatches) return -1;
+    if (!aMatches && bMatches) return 1;
+    return 0;
+  });
+}
+
+// Deep crawl for emails
+async function deepEmailCrawl(storeUrl: string): Promise<{ emails: string[]; bestEmail: string | null }> {
+  const allEmails: string[] = [];
+  const baseDomain = new URL(storeUrl).hostname.replace(/^www\./, '');
+  
+  const { html: homeHtml } = await fetchPage(storeUrl);
+  if (homeHtml) allEmails.push(...extractEmailsFromHtml(homeHtml, baseDomain));
+  
+  for (const path of DEEP_PAGES) {
+    const pageUrl = storeUrl.replace(/\/$/, '') + path;
+    const { html } = await fetchPage(pageUrl);
+    if (html) allEmails.push(...extractEmailsFromHtml(html, baseDomain));
+    await new Promise(r => setTimeout(r, 300));
+  }
+  
+  const unique = [...new Set(allEmails)];
+  
+  let bestEmail: string | null = null;
+  for (const email of unique) {
+    const domain = email.split('@')[1];
+    if (domain?.includes(baseDomain) || baseDomain.includes(domain?.replace(/^www\./, '') || '')) {
+      bestEmail = email;
+      break;
+    }
+  }
+  if (!bestEmail && unique.length > 0) bestEmail = unique[0];
+  
+  return { emails: unique, bestEmail };
+}
+
+// Validate email
+async function validateEmail(email: string): Promise<{ valid: boolean; reason?: string }> {
+  try {
+    const domain = email.split('@')[1]?.toLowerCase();
+    if (!domain) return { valid: false, reason: 'no_domain' };
+    
+    const { data: disposable } = await supabase
+      .from('disposable_domains')
+      .select('domain')
+      .eq('domain', domain)
+      .single();
+    if (disposable) return { valid: false, reason: 'disposable' };
+    
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) return { valid: false, reason: 'invalid_format' };
+    
+    try {
+      const mxRes = await fetch(`https://dns.google/resolve?name=${domain}&type=MX`, { signal: AbortSignal.timeout(5000) });
+      const mxData = await mxRes.json();
+      if (!mxData.Answer || mxData.Answer.length === 0) {
+        return { valid: false, reason: 'no_mx_record' };
+      }
+    } catch {
+      return { valid: true, reason: 'dns_check_failed' };
+    }
+    
+    return { valid: true };
+  } catch {
+    return { valid: false, reason: 'check_error' };
+  }
+}
+
+// Quality score
+function calculateQualityScore(isShopify: boolean, hasProducts: boolean, hasEmail: boolean, emailValid: boolean): number {
+  let score = 0;
+  if (isShopify) score += 40;
+  if (hasProducts) score += 30;
+  if (hasEmail) score += 15;
+  if (emailValid) score += 15;
+  return score;
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json().catch(() => ({}));
+    const { niche, source = 'all', limit = 30 } = body;
+    
+    const searchNiche = niche || SEARCH_NICHES[Math.floor(Math.random() * SEARCH_NICHES.length)];
+    const queries = [
+      `"shopify" "${searchNiche}" store -site:shopify.com`,
+      `"powered by shopify" "${searchNiche}"`,
+      `"${searchNiche}" shopify store inurl:myshopify.com`,
+      `"${searchNiche}" shopify store email contact`
+    ];
+    
+    const { data: job } = await supabase.from('scrape_jobs').insert({
+      source: source || 'all',
+      query: searchNiche,
+      status: 'running'
+    }).select();
+    const jobId = job?.[0]?.id;
+    
+    let allUrls: string[] = [];
+    
+    for (const query of queries) {
+      if (source === 'all' || source === 'google') {
+        const googleResults = await searchGoogle(query);
+        allUrls.push(...googleResults);
+      }
+      if (source === 'all' || source === 'serpapi') {
+        const serpGoogle = await searchSerpAPI(query, 'google');
+        allUrls.push(...serpGoogle);
+        const serpBing = await searchSerpAPI(query, 'bing');
+        allUrls.push(...serpBing);
+      }
+      await new Promise(r => setTimeout(r, 1000));
+    }
+    
+    // Deduplicate + filter junk
+    allUrls = [...new Set(allUrls)];
+    allUrls = allUrls.filter(url => {
+      try {
+        const hostname = new URL(url).hostname.toLowerCase();
+        return !JUNK_DOMAINS.some(junk => hostname.includes(junk));
+      } catch { return false; }
+    });
+    
+    const resultsFound = allUrls.length;
+    let validLeads = 0;
+    
+    const processed = new Set();
+    for (const url of allUrls.slice(0, limit)) {
+      if (processed.has(url)) continue;
+      processed.add(url);
+      
+      const { data: existing } = await supabase
+        .from('store_leads')
+        .select('id')
+        .eq('store_url', url)
+        .single();
+      if (existing) continue;
+      
+      const shopifyCheck = await verifyShopify(url);
+      if (!shopifyCheck.isShopify) continue;
+      
+      const { bestEmail } = await deepEmailCrawl(url);
+      
+      let emailValid = false;
+      if (bestEmail) {
+        const validation = await validateEmail(bestEmail);
+        emailValid = validation.valid;
+      }
+      
+      const qualityScore = calculateQualityScore(
+        shopifyCheck.isShopify,
+        shopifyCheck.hasProducts,
+        !!bestEmail,
+        emailValid
+      );
+      
+      if (qualityScore < 20) continue;
+      
+      await supabase.from('store_leads').insert({
+        store_url: url,
+        store_name: shopifyCheck.storeName || url.replace(/^https?:\/\//, ''),
+        niche: searchNiche,
+        email: bestEmail,
+        email_valid: emailValid,
+        is_shopify: true,
+        has_products: shopifyCheck.hasProducts,
+        quality_score: qualityScore,
+        source: source === 'all' ? 'search_engine' : source,
+        active: true
+      });
+      
+      validLeads++;
+    }
+    
+    if (jobId) {
+      await supabase.from('scrape_jobs').update({
+        status: 'completed',
+        results_found: resultsFound,
+        valid_leads: validLeads,
+        completed_at: new Date().toISOString()
+      }).eq('id', jobId);
+    }
+    
+    return NextResponse.json({
+      success: true,
+      searched: queries.length,
+      found: resultsFound,
+      valid_leads: validLeads,
+      niche: searchNiche
+    });
+    
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
