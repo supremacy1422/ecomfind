@@ -1,61 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const STOREINDEX_API_URL = "https://api.storeindex.io/v1/search";
-
 export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.STOREINDEX_API_KEY;
     if (!apiKey) {
-      return NextResponse.json(
-        { error: "STOREINDEX_API_KEY not configured. Add it to your Vercel environment variables." },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "STOREINDEX_API_KEY not configured" }, { status: 500 });
     }
 
     const body = await req.json();
-    const { country, industry, productRange, limit = 20, page = 1 } = body;
+    const { country, industry, minProducts, maxProducts, limit = 20, page = 1 } = body;
 
-    // Build StoreIndex query
-    const query: any = {
-      limit: Math.min(parseInt(limit) || 20, 50),
-      page: parseInt(page) || 1,
-    };
-
-    if (country && country !== "all") {
-      query.country = country;
-    }
-    if (industry && industry !== "all") {
-      query.industry = industry;
-    }
-    if (productRange && productRange !== "all") {
-      query.product_range = productRange;
+    const filter: Record<string, any> = {};
+    if (country) filter.country = country;
+    if (industry) filter.industry = industry;
+    if (minProducts || maxProducts) {
+      filter.activeProductsRange = {};
+      if (minProducts) filter.activeProductsRange.gte = minProducts;
+      if (maxProducts) filter.activeProductsRange.lte = maxProducts;
     }
 
-    const response = await fetch(STOREINDEX_API_URL, {
+    const res = await fetch("https://api.storeindex.io/search", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": apiKey, // Raw key, no Bearer prefix
+        "x-api-key": apiKey,
       },
-      body: JSON.stringify(query),
+      body: JSON.stringify({
+        filter,
+        limit: Math.min(limit, 50),
+        page,
+      }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("StoreIndex API error:", response.status, errorText);
-      return NextResponse.json(
-        { error: `StoreIndex API returned ${response.status}. ${errorText || "Check your API key and plan status."}` },
-        { status: response.status }
-      );
+    if (!res.ok) {
+      const text = await res.text();
+      return NextResponse.json({ error: `StoreIndex error: ${text}` }, { status: res.status });
     }
 
-    const data = await response.json();
-    return NextResponse.json(data);
+    const json = await res.json();
+    return NextResponse.json({
+      stores: json.data || [],
+      total: json.total || 0,
+      page: json.page || page,
+      limit: json.limit || limit,
+    });
   } catch (err: any) {
-    console.error("StoreIndex search error:", err);
-    return NextResponse.json(
-      { error: err.message || "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message || "Search failed" }, { status: 500 });
   }
 }

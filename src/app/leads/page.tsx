@@ -1,647 +1,362 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Loader2,
-  Upload,
-  Download,
-  Search,
-  Trash2,
-  Mail,
-  Globe,
-  Tag,
-  MapPin,
-  Star,
-  RefreshCw,
-  Database,
-  AlertCircle,
-  CheckCircle2,
-  XCircle,
-  FileSpreadsheet,
-  Info,
-  Filter,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import Navbar from "@/components/Navbar";
+import React, { useEffect, useState, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
 import StoreIndexSearch from "@/components/StoreIndexSearch";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+/* ─── Icons ─── */
+const IconSearch = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+);
+const IconUpload = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+);
+const IconDownload = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+);
+const IconMail = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+);
+const IconTrash = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+);
+const IconGlobe = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+);
+const IconZap = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+);
+const IconCheck = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+);
+const IconAlert = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+);
+const IconPlus = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+);
 
 interface Lead {
   id: string;
-  store_name: string;
-  url: string;
-  niche: string;
-  country: string;
-  email: string | null;
-  quality_score: number;
-  status: string;
-  created_at: string;
-  notes?: string;
+  domain: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  country?: string;
+  industry?: string;
+  company_size?: string;
+  revenue_range?: string;
+  active_products?: string;
+  installed_apps?: string[];
+  quality_score?: number;
+  status?: string;
+  source?: string;
+  created_at?: string;
 }
-
-const QUALITY_LABELS: Record<number, { label: string; color: string }> = {
-  5: { label: "Hot Lead", color: "bg-emerald-100 text-emerald-800 border-emerald-200" },
-  4: { label: "Warm", color: "bg-blue-100 text-blue-800 border-blue-200" },
-  3: { label: "Qualified", color: "bg-amber-100 text-amber-800 border-amber-200" },
-  2: { label: "Cold", color: "bg-orange-100 text-orange-800 border-orange-200" },
-  1: { label: "Unqualified", color: "bg-red-100 text-red-800 border-red-200" },
-};
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
-  const [importing, setImporting] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [showImport, setShowImport] = useState(false);
+  const [importText, setImportText] = useState("");
   const [importError, setImportError] = useState("");
-  const [importSuccess, setImportSuccess] = useState("");
-  const [findingEmail, setFindingEmail] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [sortField, setSortField] = useState<keyof Lead>("created_at");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const supabase = createClient();
+  const [osintLoading, setOsintLoading] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null));
+    fetchLeads();
+  }, []);
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from("leads")
-        .select("*")
-        .order(sortField, { ascending: sortDir === "asc" });
-      if (error) throw error;
-      setLeads(data || []);
-    } catch (err: any) {
-      console.error("Fetch leads error:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [supabase, sortField, sortDir]);
-
-  useEffect(() => {
-    fetchLeads();
-  }, [fetchLeads]);
-
-  // ─── CSV IMPORT ───
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // 4MB limit check
-    const MAX_SIZE = 4 * 1024 * 1024;
-    if (file.size > MAX_SIZE) {
-      setImportError("File exceeds 4MB limit. Please split into smaller files or compress.");
-      setImportSuccess("");
-      return;
-    }
-
-    setImporting(true);
-    setImportError("");
-    setImportSuccess("");
-
-    try {
-      const text = await file.text();
-      const rows = parseCSV(text);
-
-      if (rows.length === 0) {
-        setImportError("No valid data rows found in CSV. Make sure it has a header row.");
-        setImporting(false);
-        return;
-      }
-
-      // Map various column names to our schema
-      const mapped = rows.map((row: any) => ({
-        store_name: row.store_name || row.storeName || row.name || row.store || row["Store Name"] || row["store name"] || "Unknown Store",
-        url: normalizeUrl(row.url || row.website || row.site || row["Website URL"] || row["Store URL"] || ""),
-        niche: row.niche || row.category || row.industry || row["Niche"] || row["Category"] || "General",
-        country: row.country || row.location || row.region || row["Country"] || row["Location"] || "Unknown",
-        email: row.email || row["Email Address"] || row["Contact Email"] || null,
-        quality_score: parseInt(row.quality_score || row.quality || row.score || row["Quality Score"] || "3") || 3,
-        status: row.status || "new",
-      })).filter((r: any) => r.url); // Only keep rows with URLs
-
-      if (mapped.length === 0) {
-        setImportError("No valid leads found. CSV must have at least a 'url' or 'website' column.");
-        setImporting(false);
-        return;
-      }
-
-      const { error } = await supabase.from("leads").insert(mapped);
-      if (error) throw error;
-
-      setImportSuccess(`Successfully imported ${mapped.length} leads!`);
-      fetchLeads();
-    } catch (err: any) {
-      console.error("Import error:", err);
-      setImportError(err.message || "Failed to import CSV. Check the format and try again.");
-    } finally {
-      setImporting(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-
-  // Robust CSV parser
-  const parseCSV = (text: string): any[] => {
-    const lines = text.split(/\r?\n/).filter((l) => l.trim());
-    if (lines.length < 2) return [];
-
-    const headers = parseCSVLine(lines[0]).map((h) => h.trim().replace(/^["']|["']$/g, ""));
-    const rows: any[] = [];
-
-    for (let i = 1; i < lines.length; i++) {
-      const values = parseCSVLine(lines[i]);
-      if (values.length === 0) continue;
-      const row: any = {};
-      headers.forEach((h, idx) => {
-        row[h] = values[idx]?.trim().replace(/^["']|["']$/g, "") || "";
-      });
-      rows.push(row);
-    }
-    return rows;
-  };
-
-  const parseCSVLine = (line: string): string[] => {
-    const result: string[] = [];
-    let current = "";
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      if (char === '"') {
-        if (inQuotes && line[i + 1] === '"') {
-          current += '"';
-          i++;
-        } else {
-          inQuotes = !inQuotes;
-        }
-      } else if (char === ',' && !inQuotes) {
-        result.push(current);
-        current = "";
-      } else {
-        current += char;
-      }
-    }
-    result.push(current);
-    return result;
-  };
-
-  const normalizeUrl = (url: string): string => {
-    if (!url) return "";
-    let u = url.trim();
-    if (!u.startsWith("http://") && !u.startsWith("https://")) {
-      u = "https://" + u;
-    }
-    return u;
-  };
-
-  // ─── CSV EXPORT ───
-  const exportCSV = () => {
-    const headers = ["Store Name", "Website URL", "Niche", "Country", "Email", "Quality Score", "Status", "Created At"];
-    const rows = filteredLeads.map((l) => [
-      l.store_name,
-      l.url,
-      l.niche,
-      l.country,
-      l.email || "",
-      l.quality_score,
-      l.status,
-      new Date(l.created_at).toLocaleDateString(),
-    ]);
-
-    const csv = [headers.join(","), ...rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `ecomfind-leads-${new Date().toISOString().split("T")[0]}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(link.href);
-  };
-
-  // ─── OSINT EMAIL FINDER ───
-  const findEmail = async (leadId: string, url: string) => {
-    setFindingEmail(leadId);
-    try {
-      const res = await fetch("/api/find-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url }),
-      });
-      const data = await res.json();
-      if (data.email) {
-        await supabase.from("leads").update({ email: data.email }).eq("id", leadId);
-        setLeads((prev) =>
-          prev.map((l) => (l.id === leadId ? { ...l, email: data.email } : l))
-        );
-      } else {
-        alert("No email found for this domain. Try manual search.");
-      }
-    } catch (err) {
-      alert("Email finder failed. Please try again.");
-    } finally {
-      setFindingEmail(null);
-    }
-  };
-
-  // ─── BULK DELETE ───
-  const deleteSelected = async () => {
-    if (selectedLeads.size === 0) return;
-    if (!confirm(`Delete ${selectedLeads.size} selected leads? This cannot be undone.`)) return;
-    setDeleting(true);
-    try {
-      const ids = Array.from(selectedLeads);
-      const { error } = await supabase.from("leads").delete().in("id", ids);
-      if (error) throw error;
-      setSelectedLeads(new Set());
-      fetchLeads();
-    } catch (err: any) {
-      alert("Delete failed: " + err.message);
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  // ─── SORTING ───
-  const toggleSort = (field: keyof Lead) => {
-    if (sortField === field) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setSortField(field);
-      setSortDir("desc");
-    }
-  };
-
-  // ─── FILTERING ───
-  const filteredLeads = leads.filter((l) => {
-    const q = searchQuery.toLowerCase();
-    return (
-      l.store_name?.toLowerCase().includes(q) ||
-      l.url?.toLowerCase().includes(q) ||
-      l.niche?.toLowerCase().includes(q) ||
-      l.country?.toLowerCase().includes(q) ||
-      l.email?.toLowerCase().includes(q)
-    );
-  });
+    const { data, error } = await supabase.from("leads").select("*").order("created_at", { ascending: false });
+    if (!error && data) setLeads(data);
+    setLoading(false);
+  }, []);
 
   const toggleSelect = (id: string) => {
-    const next = new Set(selectedLeads);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setSelectedLeads(next);
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
   };
 
-  const toggleSelectAll = () => {
-    if (selectedLeads.size === filteredLeads.length) {
-      setSelectedLeads(new Set());
-    } else {
-      setSelectedLeads(new Set(filteredLeads.map((l) => l.id)));
+  const selectAll = () => {
+    if (selected.size === filteredLeads.length) setSelected(new Set());
+    else setSelected(new Set(filteredLeads.map(l => l.id)));
+  };
+
+  const deleteSelected = async () => {
+    if (selected.size === 0) return;
+    const ids = Array.from(selected);
+    await supabase.from("leads").delete().in("id", ids);
+    setSelected(new Set());
+    fetchLeads();
+  };
+
+  const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      setImportError("File exceeds 4MB limit.");
+      return;
     }
+    const text = await file.text();
+    parseAndImport(text);
+  };
+
+  const parseAndImport = async (text: string) => {
+    setImportError("");
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (lines.length < 2) { setImportError("CSV must have a header row and at least one data row."); return; }
+    const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
+    const rows: any[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const vals = lines[i].split(",");
+      const row: any = { source: "csv_import", created_at: new Date().toISOString() };
+      headers.forEach((h, idx) => {
+        if (h === "email") row.email = vals[idx]?.trim();
+        if (h === "domain") row.domain = vals[idx]?.trim();
+        if (h === "first_name") row.first_name = vals[idx]?.trim();
+        if (h === "last_name") row.last_name = vals[idx]?.trim();
+        if (h === "country") row.country = vals[idx]?.trim();
+        if (h === "industry") row.industry = vals[idx]?.trim();
+      });
+      if (row.domain || row.email) rows.push(row);
+    }
+    if (rows.length === 0) { setImportError("No valid rows found."); return; }
+    const { error } = await supabase.from("leads").upsert(rows, { onConflict: "domain" });
+    if (error) setImportError(error.message);
+    else { setShowImport(false); setImportText(""); fetchLeads(); }
+  };
+
+  const handlePasteImport = () => {
+    parseAndImport(importText);
+  };
+
+  const downloadCSV = () => {
+    const headers = ["domain", "email", "first_name", "last_name", "country", "industry", "company_size", "revenue_range", "quality_score", "status"];
+    const rows = filteredLeads.map(l => [
+      l.domain || "", l.email || "", l.first_name || "", l.last_name || "",
+      l.country || "", l.industry || "", l.company_size || "", l.revenue_range || "",
+      l.quality_score || "", l.status || ""
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
+    const csv = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `revenueai-leads-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const findEmailOSINT = async (lead: Lead) => {
+    if (!lead.domain) return;
+    setOsintLoading(lead.id);
+    try {
+      const res = await fetch("/api/leads/discover", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain: lead.domain }),
+      });
+      const json = await res.json();
+      if (json.emails && json.emails.length > 0) {
+        await supabase.from("leads").update({ email: json.emails[0] }).eq("id", lead.id);
+        fetchLeads();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setOsintLoading(null);
+    }
+  };
+
+  const filteredLeads = leads.filter(l => {
+    const q = search.toLowerCase();
+    return (l.domain?.toLowerCase().includes(q) || l.email?.toLowerCase().includes(q) || l.country?.toLowerCase().includes(q) || l.industry?.toLowerCase().includes(q));
+  });
+
+  const qualityColor = (score?: number) => {
+    if (!score) return "text-slate-500";
+    if (score >= 80) return "text-emerald-400";
+    if (score >= 60) return "text-amber-400";
+    if (score >= 40) return "text-orange-400";
+    return "text-rose-400";
   };
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Navbar />
-      <div className="max-w-7xl mx-auto px-4 py-8">
+    <div className="min-h-screen bg-[#0b0f1f] text-slate-200">
+      {/* Nav */}
+      <header className="border-b border-slate-800/60 bg-[#0b0f1e]/80 backdrop-blur sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <a href="/" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mr-4">
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              <span className="text-sm font-medium hidden sm:inline">Home</span>
+            </a>
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+              <IconZap className="w-5 h-5 text-emerald-400" />
+            </div>
+            <span className="font-bold text-white tracking-tight">RevenueAI</span>
+          </div>
+          <nav className="hidden md:flex items-center gap-1">
+            <a href="/discover" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Audit</a>
+            <a href="/leads" className="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-sm font-medium border border-emerald-500/20">Leads</a>
+            <a href="/outreach" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Outreach</a>
+            <a href="/about" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">About</a>
+          </nav>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Lead Management</h1>
-          <p className="text-slate-600">
-            Import, search, and manage your e-commerce leads. Use StoreIndex to discover new stores or upload your own lists.
-          </p>
-        </motion.div>
-
-        {/* StoreIndex Search Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-6"
-        >
-          <StoreIndexSearch onImport={fetchLeads} />
-        </motion.div>
-
-        {/* Controls Bar */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="grid md:grid-cols-12 gap-4 mb-6"
-        >
-          {/* Search */}
-          <div className="md:col-span-4 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              placeholder="Search leads by name, URL, niche, country..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Lead Management</h1>
+            <p className="text-sm text-slate-400 mt-1">Import, discover, and manage your outreach targets.</p>
           </div>
-
-          {/* Import / Export */}
-          <div className="md:col-span-5 flex gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-            <Button
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={importing}
-              className="flex-1"
-            >
-              {importing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
-              {importing ? "Importing..." : "Import CSV"}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={exportCSV}
-              disabled={filteredLeads.length === 0}
-              className="flex-1"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export CSV
-            </Button>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-500">{leads.length} total leads</span>
           </div>
+        </div>
 
-          {/* Bulk Delete */}
-          <div className="md:col-span-3 flex justify-end">
-            {selectedLeads.size > 0 && (
-              <Button
-                variant="destructive"
-                onClick={deleteSelected}
-                disabled={deleting}
-              >
-                {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
-                Delete {selectedLeads.size}
-              </Button>
-            )}
-          </div>
-        </motion.div>
+        {/* StoreIndex Search */}
+        <StoreIndexSearch onImport={fetchLeads} />
 
-        {/* 4MB Notice */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.3 }}
-          className="mb-4 flex items-center gap-2 text-sm text-slate-500 bg-blue-50 p-3 rounded-lg border border-blue-100"
-        >
-          <Info className="h-4 w-4 text-blue-500 shrink-0" />
-          <span>
-            CSV files are limited to <strong>4MB</strong> per upload. For larger lists, split into multiple files or use the StoreIndex database search above.
-          </span>
-        </motion.div>
-
-        {/* Alerts */}
-        <AnimatePresence>
-          {importError && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-4 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-start gap-3"
-            >
-              <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
-              <div>
-                <div className="font-medium">Import Failed</div>
-                <div className="text-sm">{importError}</div>
-              </div>
-              <button onClick={() => setImportError("")} className="ml-auto text-red-400 hover:text-red-600">
-                <XCircle className="h-5 w-5" />
-              </button>
-            </motion.div>
+        {/* Controls */}
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          <button onClick={() => setShowImport(!showImport)} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold rounded-lg text-sm transition-all flex items-center gap-1.5">
+            <IconUpload className="w-4 h-4" /> Import CSV
+          </button>
+          <button onClick={downloadCSV} disabled={filteredLeads.length === 0} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50">
+            <IconDownload className="w-4 h-4" /> Export CSV
+          </button>
+          {selected.size > 0 && (
+            <button onClick={deleteSelected} className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
+              <IconTrash className="w-4 h-4" /> Delete ({selected.size})
+            </button>
           )}
-          {importSuccess && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-4 p-4 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200 flex items-start gap-3"
-            >
-              <CheckCircle2 className="h-5 w-5 shrink-0 mt-0.5" />
+          <div className="relative flex-1 min-w-[200px] ml-auto">
+            <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search leads..."
+              className="w-full pl-9 pr-4 py-2 bg-slate-900/60 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
+          </div>
+        </div>
+
+        {/* Import Panel */}
+        {showImport && (
+          <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 mb-6">
+            <div className="flex items-start gap-3 mb-4 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10">
+              <IconAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
               <div>
-                <div className="font-medium">Import Successful</div>
-                <div className="text-sm">{importSuccess}</div>
+                <p className="text-sm text-amber-400 font-medium">File Size Limit: 4MB</p>
+                <p className="text-xs text-slate-400">Upload CSV files only. Max 4MB per file. Supported columns: domain, email, first_name, last_name, country, industry.</p>
               </div>
-              <button onClick={() => setImportSuccess("")} className="ml-auto text-emerald-400 hover:text-emerald-600">
-                <XCircle className="h-5 w-5" />
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-slate-500 uppercase tracking-wider mb-2 block">Upload CSV File</label>
+                <input type="file" accept=".csv" onChange={handleCSVUpload}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-300 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-emerald-500 file:text-slate-950 file:text-xs file:font-semibold hover:file:bg-emerald-400" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 uppercase tracking-wider mb-2 block">Or Paste CSV Content</label>
+                <textarea value={importText} onChange={(e) => setImportText(e.target.value)} rows={3} placeholder="domain,email,first_name..."
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 resize-none mb-2" />
+                <button onClick={handlePasteImport} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold rounded-lg text-xs transition-all">Import Pasted Data</button>
+              </div>
+            </div>
+            {importError && <p className="text-rose-400 text-sm mt-3 flex items-center gap-1"><IconAlert className="w-4 h-4" /> {importError}</p>}
+          </div>
+        )}
 
         {/* Leads Table */}
-        <Card className="border-0 shadow-md overflow-hidden">
-          <CardHeader className="bg-white border-b pb-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Database className="h-5 w-5 text-slate-500" />
-                Your Leads
-                <Badge variant="secondary" className="ml-2">
-                  {filteredLeads.length}
-                </Badge>
-              </CardTitle>
-              <Button variant="ghost" size="sm" onClick={fetchLeads} disabled={loading}>
-                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-                Refresh
-              </Button>
+        <div className="rounded-2xl bg-slate-900/40 border border-slate-800 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="text-xs text-slate-500 uppercase bg-slate-950/50">
+                <tr>
+                  <th className="px-4 py-3 w-10">
+                    <input type="checkbox" checked={filteredLeads.length > 0 && selected.size === filteredLeads.length} onChange={selectAll}
+                      className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500/50" />
+                  </th>
+                  <th className="px-4 py-3">Domain</th>
+                  <th className="px-4 py-3">Email</th>
+                  <th className="px-4 py-3">Country</th>
+                  <th className="px-4 py-3">Industry</th>
+                  <th className="px-4 py-3">Quality</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {filteredLeads.map((lead) => (
+                  <tr key={lead.id} className="hover:bg-slate-800/30">
+                    <td className="px-4 py-3">
+                      <input type="checkbox" checked={selected.has(lead.id)} onChange={() => toggleSelect(lead.id)}
+                        className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500/50" />
+                    </td>
+                    <td className="px-4 py-3">
+                      <a href={`https://${lead.domain}`} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline font-medium">{lead.domain}</a>
+                    </td>
+                    <td className="px-4 py-3 text-slate-300">
+                      {lead.email ? (
+                        <span className="flex items-center gap-1"><IconMail className="w-3 h-3 text-slate-500" /> {lead.email}</span>
+                      ) : (
+                        <button onClick={() => findEmailOSINT(lead)} disabled={osintLoading === lead.id}
+                          className="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 transition-colors flex items-center gap-1">
+                          {osintLoading === lead.id ? <span className="animate-spin w-3 h-3 border-2 border-slate-500 border-t-transparent rounded-full" /> : <IconSearch className="w-3 h-3" />}
+                          Find Email
+                        </button>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-slate-400">{lead.country || "—"}</td>
+                    <td className="px-4 py-3 text-slate-400">{lead.industry || "—"}</td>
+                    <td className="px-4 py-3">
+                      <span className={`font-bold ${qualityColor(lead.quality_score)}`}>{lead.quality_score ?? "—"}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full border ${lead.status === "contacted" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : lead.status === "replied" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : "bg-slate-800 text-slate-400 border-slate-700"}`}>
+                        {lead.status || "new"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {lead.email && (
+                          <a href={`/outreach?email=${encodeURIComponent(lead.email)}`}
+                            className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded text-xs border border-emerald-500/20 transition-colors flex items-center gap-1">
+                            <IconMail className="w-3 h-3" /> Outreach
+                          </a>
+                        )}
+                        <button onClick={async () => { await supabase.from("leads").delete().eq("id", lead.id); fetchLeads(); }}
+                          className="p-1 text-slate-500 hover:text-rose-400 transition-colors">
+                          <IconTrash className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {filteredLeads.length === 0 && !loading && (
+            <div className="text-center py-16 text-slate-600">
+              <IconGlobe className="w-10 h-10 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">No leads yet. Import a CSV or search StoreIndex above.</p>
             </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="p-12 text-center">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto text-slate-400 mb-4" />
-                <p className="text-slate-500">Loading leads...</p>
-              </div>
-            ) : filteredLeads.length === 0 ? (
-              <div className="p-12 text-center">
-                <FileSpreadsheet className="h-12 w-12 mx-auto text-slate-300 mb-4" />
-                <h3 className="text-lg font-medium text-slate-900 mb-1">No leads yet</h3>
-                <p className="text-slate-500 max-w-md mx-auto mb-4">
-                  Upload a CSV file, use the StoreIndex search above, or manually add leads to get started.
-                </p>
-                <Button onClick={() => fileInputRef.current?.click()} variant="outline">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload CSV
-                </Button>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-slate-50 hover:bg-slate-50">
-                      <TableHead className="w-12">
-                        <Checkbox
-                          checked={selectedLeads.size === filteredLeads.length && filteredLeads.length > 0}
-                          onCheckedChange={toggleSelectAll}
-                        />
-                      </TableHead>
-                      <TableHead
-                        className="cursor-pointer hover:text-slate-900"
-                        onClick={() => toggleSort("store_name")}
-                      >
-                        <div className="flex items-center gap-1">
-                          Store
-                          {sortField === "store_name" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
-                        </div>
-                      </TableHead>
-                      <TableHead
-                        className="cursor-pointer hover:text-slate-900"
-                        onClick={() => toggleSort("niche")}
-                      >
-                        <div className="flex items-center gap-1">
-                          Niche
-                          {sortField === "niche" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
-                        </div>
-                      </TableHead>
-                      <TableHead
-                        className="cursor-pointer hover:text-slate-900"
-                        onClick={() => toggleSort("country")}
-                      >
-                        <div className="flex items-center gap-1">
-                          Country
-                          {sortField === "country" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
-                        </div>
-                      </TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead
-                        className="cursor-pointer hover:text-slate-900"
-                        onClick={() => toggleSort("quality_score")}
-                      >
-                        <div className="flex items-center gap-1">
-                          Quality
-                          {sortField === "quality_score" && (sortDir === "asc" ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
-                        </div>
-                      </TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredLeads.map((lead) => {
-                      const quality = QUALITY_LABELS[lead.quality_score] || QUALITY_LABELS[3];
-                      return (
-                        <TableRow key={lead.id} className="group">
-                          <TableCell>
-                            <Checkbox
-                              checked={selectedLeads.has(lead.id)}
-                              onCheckedChange={() => toggleSelect(lead.id)}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <div className="font-medium text-slate-900">{lead.store_name}</div>
-                            <a
-                              href={lead.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-0.5"
-                            >
-                              <Globe className="h-3 w-3" />
-                              {lead.url.replace(/^https?:\/\//, "").substring(0, 35)}
-                              {lead.url.replace(/^https?:\/\//, "").length > 35 ? "..." : ""}
-                            </a>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="text-xs">
-                              <Tag className="h-3 w-3 mr-1" />
-                              {lead.niche}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-1 text-sm text-slate-600">
-                              <MapPin className="h-3 w-3" />
-                              {lead.country}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {lead.email ? (
-                              <a
-                                href={`mailto:${lead.email}`}
-                                className="text-sm text-blue-600 hover:underline flex items-center gap-1"
-                              >
-                                <Mail className="h-3 w-3" />
-                                {lead.email.length > 25 ? lead.email.substring(0, 25) + "..." : lead.email}
-                              </a>
-                            ) : (
-                              <span className="text-xs text-slate-400 italic">Not found</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <Badge className={`text-xs ${quality.color}`}>
-                              <Star className="h-3 w-3 mr-1" />
-                              {quality.label}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {!lead.email && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => findEmail(lead.id, lead.url)}
-                                  disabled={findingEmail === lead.id}
-                                  className="h-8 text-xs"
-                                >
-                                  {findingEmail === lead.id ? (
-                                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                                  ) : (
-                                    <Mail className="h-3 w-3 mr-1" />
-                                  )}
-                                  Find Email
-                                </Button>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  if (confirm("Delete this lead?")) {
-                                    supabase.from("leads").delete().eq("id", lead.id).then(() => fetchLeads());
-                                  }
-                                }}
-                                className="h-8 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+          )}
+        </div>
+      </main>
     </div>
   );
 }
