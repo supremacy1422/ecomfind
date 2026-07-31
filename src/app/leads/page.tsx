@@ -430,20 +430,119 @@ export default function LeadsPage() {
             {siImportCount > 0 && <span className="ml-auto text-xs text-emerald-400">✓ {siImportCount} imported</span>}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
+            {/* ─── 80 PROFITABLE COUNTRIES ─── */}
             <div>
               <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">Country</label>
-              <select value={siCountry} onChange={(e) => setSiCountry(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white">
-                <option value="US">United States</option>
-                <option value="GB">United Kingdom</option>
-                <option value="CA">Canada</option>
-                <option value="AU">Australia</option>
-                <option value="DE">Germany</option>
-                <option value="FR">France</option>
-                <option value="SE">Sweden</option>
-                <option value="NL">Netherlands</option>
-                <option value="">Any</option>
+              <select
+                value={siCountry}
+                onChange={(e) => setSiCountry(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white"
+              >
+                <optgroup label="North America">
+                  <option value="US">United States</option>
+                  <option value="CA">Canada</option>
+                  <option value="MX">Mexico</option>
+                </optgroup>
+
+                <optgroup label="Western Europe">
+                  <option value="GB">United Kingdom</option>
+                  <option value="DE">Germany</option>
+                  <option value="FR">France</option>
+                  <option value="NL">Netherlands</option>
+                  <option value="IT">Italy</option>
+                  <option value="ES">Spain</option>
+                  <option value="SE">Sweden</option>
+                  <option value="CH">Switzerland</option>
+                  <option value="BE">Belgium</option>
+                  <option value="AT">Austria</option>
+                  <option value="NO">Norway</option>
+                  <option value="DK">Denmark</option>
+                  <option value="FI">Finland</option>
+                  <option value="IE">Ireland</option>
+                  <option value="PT">Portugal</option>
+                  <option value="LU">Luxembourg</option>
+                  <option value="IS">Iceland</option>
+                  <option value="MC">Monaco</option>
+                  <option value="LI">Liechtenstein</option>
+                  <option value="MT">Malta</option>
+                  <option value="CY">Cyprus</option>
+                </optgroup>
+
+                <optgroup label="Central & Eastern Europe">
+                  <option value="PL">Poland</option>
+                  <option value="CZ">Czech Republic</option>
+                  <option value="HU">Hungary</option>
+                  <option value="RO">Romania</option>
+                  <option value="GR">Greece</option>
+                  <option value="SK">Slovakia</option>
+                  <option value="SI">Slovenia</option>
+                  <option value="HR">Croatia</option>
+                  <option value="BG">Bulgaria</option>
+                  <option value="LT">Lithuania</option>
+                  <option value="LV">Latvia</option>
+                  <option value="EE">Estonia</option>
+                </optgroup>
+
+                <optgroup label="Asia-Pacific">
+                  <option value="JP">Japan</option>
+                  <option value="KR">South Korea</option>
+                  <option value="SG">Singapore</option>
+                  <option value="HK">Hong Kong</option>
+                  <option value="AU">Australia</option>
+                  <option value="NZ">New Zealand</option>
+                  <option value="TW">Taiwan</option>
+                  <option value="MY">Malaysia</option>
+                  <option value="TH">Thailand</option>
+                  <option value="ID">Indonesia</option>
+                  <option value="PH">Philippines</option>
+                  <option value="VN">Vietnam</option>
+                  <option value="BN">Brunei</option>
+                  <option value="IN">India</option>
+                </optgroup>
+
+                <optgroup label="Middle East">
+                  <option value="AE">United Arab Emirates</option>
+                  <option value="SA">Saudi Arabia</option>
+                  <option value="IL">Israel</option>
+                  <option value="QA">Qatar</option>
+                  <option value="KW">Kuwait</option>
+                  <option value="BH">Bahrain</option>
+                  <option value="OM">Oman</option>
+                  <option value="JO">Jordan</option>
+                  <option value="LB">Lebanon</option>
+                  <option value="TR">Turkey</option>
+                </optgroup>
+
+                <optgroup label="Latin America">
+                  <option value="BR">Brazil</option>
+                  <option value="AR">Argentina</option>
+                  <option value="CL">Chile</option>
+                  <option value="CO">Colombia</option>
+                  <option value="PE">Peru</option>
+                  <option value="UY">Uruguay</option>
+                  <option value="CR">Costa Rica</option>
+                  <option value="PA">Panama</option>
+                  <option value="GT">Guatemala</option>
+                  <option value="DO">Dominican Republic</option>
+                  <option value="JM">Jamaica</option>
+                  <option value="TT">Trinidad & Tobago</option>
+                </optgroup>
+
+                <optgroup label="Africa">
+                  <option value="ZA">South Africa</option>
+                  <option value="NG">Nigeria</option>
+                  <option value="KE">Kenya</option>
+                  <option value="GH">Ghana</option>
+                  <option value="EG">Egypt</option>
+                  <option value="MA">Morocco</option>
+                  <option value="TN">Tunisia</option>
+                  <option value="MU">Mauritius</option>
+                </optgroup>
+
+                <option value="">Any Country</option>
               </select>
             </div>
+
             <div>
               <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">Industry</label>
               <select value={siIndustry} onChange={(e) => setSiIndustry(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white">
@@ -470,37 +569,39 @@ export default function LeadsPage() {
             </div>
             <div>
               <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">Year Created</label>
-              <select value={siYear} onChange={(e) => setSiYear(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white">
-                <option value="">Any Year</option>
-                <option value="2024">2024</option>
-                <option value="2023">2023</option>
-                <option value="2022">2022</option>
-                <option value="2021">2021</option>
-                <option value="2020">2020</option>
-                <option value="2019">2019</option>
-                <option value="2018">2018</option>
-                <option value="2017">2017</option>
-                <option value="2016">2016</option>
-                <option value="2015">2015</option>
-                <option value="2014">2014</option>
-                <option value="2013">2013</option>
-                <option value="2012">2012</option>
-                <option value="2011">2011</option>
-                <option value="2010">2010</option>
-                <option value="2009">2009</option>
-                <option value="2008">2008</option>
-                <option value="2007">2007</option>
-                <option value="2006">2006</option>
-                <option value="2005">2005</option>
-                <option value="2000">2000s</option>
-                <option value="1990">1990s</option>
-                <option value="1980">1980s</option>
-                <option value="1970">1970s</option>
-                <option value="1960">1960s</option>
-                <option value="1950">1950s</option>
-                <option value="1940">1940s</option>
-                <option value="1930">1930s</option>
-                <option value="1900">1900s</option>
+                <select value={siYear} onChange={e => setSiYear(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white">
+              <option value="">Any Year</option>
+              <option value="2026">2026</option>
+              <option value="2025">2025</option>
+              <option value="2024">2024</option>
+              <option value="2023">2023</option>
+              <option value="2022">2022</option>
+              <option value="2021">2021</option>
+              <option value="2020">2020</option>
+              <option value="2019">2019</option>
+              <option value="2018">2018</option>
+              <option value="2017">2017</option>
+              <option value="2016">2016</option>
+              <option value="2015">2015</option>
+              <option value="2014">2014</option>
+              <option value="2013">2013</option>
+              <option value="2012">2012</option>
+              <option value="2011">2011</option>
+              <option value="2010">2010</option>
+              <option value="2009">2009</option>
+              <option value="2008">2008</option>
+              <option value="2007">2007</option>
+              <option value="2006">2006</option>
+              <option value="2005">2005</option>
+              <option value="2000">2000s</option>
+              <option value="1990">1990s</option>
+              <option value="1980">1980s</option>
+              <option value="1970">1970s</option>
+              <option value="1960">1960s</option>
+              <option value="1950">1950s</option>
+              <option value="1940">1940s</option>
+              <option value="1930">1930s</option>
+              <option value="1900">1900s</option>
               </select>
             </div>
             <div>
