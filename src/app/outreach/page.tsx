@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
@@ -156,8 +156,8 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-/* ─── Main Page ─── */
-export default function OutreachPage() {
+/* ─── Inner Component (uses useSearchParams) ─── */
+function OutreachComposer() {
   const searchParams = useSearchParams();
   const paramEmail = searchParams.get("email") || "";
   const paramDomain = searchParams.get("domain") || "";
@@ -177,7 +177,6 @@ export default function OutreachPage() {
   const [user, setUser] = useState<any>(null);
   const [copied, setCopied] = useState(false);
 
-  /* ─── Load user + logs ─── */
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null);
@@ -188,7 +187,6 @@ export default function OutreachPage() {
     if (saved) setLogs(JSON.parse(saved));
   }, []);
 
-  /* ─── Apply template ─── */
   useEffect(() => {
     const t = TEMPLATES[templateKey];
     if (!t) return;
@@ -207,13 +205,11 @@ export default function OutreachPage() {
     setBody(bod);
   }, [templateKey, domain]);
 
-  /* ─── Save logs ─── */
   const persistLogs = (newLogs: OutreachLog[]) => {
     setLogs(newLogs);
     localStorage.setItem("outreachLogs", JSON.stringify(newLogs));
   };
 
-  /* ─── Send ─── */
   const handleSend = async () => {
     if (!recipient || !subject || !body) {
       setSendStatus("Please fill in recipient, subject, and body.");
@@ -275,6 +271,248 @@ export default function OutreachPage() {
   };
 
   return (
+    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      {/* ─── Composer ─── */}
+      <div className="xl:col-span-2 space-y-6">
+        <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <IconSparkles className="w-5 h-5 text-violet-400" />
+            <h2 className="text-lg font-bold text-white">Email Composer</h2>
+          </div>
+
+          {/* Template Selector */}
+          <div className="mb-6">
+            <label className="text-xs text-slate-500 uppercase tracking-wider mb-2 block">AI Template</label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {Object.entries(TEMPLATES).map(([key, t]) => (
+                <button
+                  key={key}
+                  onClick={() => setTemplateKey(key)}
+                  className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors text-left ${
+                    templateKey === key
+                      ? "bg-violet-500/10 text-violet-400 border-violet-500/30"
+                      : "bg-slate-950/50 text-slate-400 border-slate-800 hover:border-slate-700"
+                  }`}
+                >
+                  {t.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* From / To */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="text-xs text-slate-500 uppercase tracking-wider mb-1 block">From Name</label>
+              <input
+                value={fromName}
+                onChange={(e) => setFromName(e.target.value)}
+                placeholder="Your Name"
+                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+              />
+            </div>
+            <div>
+              <label className="text-xs text-slate-500 uppercase tracking-wider mb-1 block">From Email</label>
+              <input
+                value={fromEmail}
+                onChange={(e) => setFromEmail(e.target.value)}
+                placeholder="you@company.com"
+                className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+              />
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label className="text-xs text-slate-500 uppercase tracking-wider mb-1 block">To (Recipient)</label>
+            <input
+              value={recipient}
+              onChange={(e) => setRecipient(e.target.value)}
+              placeholder="owner@store.com"
+              className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+            />
+          </div>
+
+          <div className="mb-4">
+            <label className="text-xs text-slate-500 uppercase tracking-wider mb-1 block">Store Domain</label>
+            <input
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+              placeholder="store.com"
+              className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+            />
+          </div>
+
+          <div className="mb-4">
+            <label className="text-xs text-slate-500 uppercase tracking-wider mb-1 block">Subject</label>
+            <input
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+            />
+          </div>
+
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs text-slate-500 uppercase tracking-wider">Body</label>
+              <button onClick={copyToClipboard} className="text-[10px] text-slate-500 hover:text-violet-400 flex items-center gap-1 transition-colors">
+                {copied ? <IconCheck className="w-3 h-3" /> : <IconCopy className="w-3 h-3" />}
+                {copied ? "Copied" : "Copy"}
+              </button>
+            </div>
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={12}
+              className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40 resize-none font-mono leading-relaxed"
+            />
+            <p className="text-[10px] text-slate-600 mt-1">Tip: Personalize the bracketed sections before sending.</p>
+          </div>
+
+          {/* Schedule Toggle */}
+          <div className="flex items-center gap-3 mb-4">
+            <button
+              onClick={() => setScheduleMode(!scheduleMode)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                scheduleMode ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : "bg-slate-800 text-slate-400 border-slate-700"
+              }`}
+            >
+              <IconClock className="w-3.5 h-3.5" />
+              {scheduleMode ? "Scheduling On" : "Schedule Send"}
+            </button>
+            {scheduleMode && (
+              <input
+                type="datetime-local"
+                value={scheduleDate}
+                onChange={(e) => setScheduleDate(e.target.value)}
+                className="px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
+              />
+            )}
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleSend}
+              disabled={sending}
+              className="flex-1 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-semibold rounded-lg text-sm flex items-center justify-center gap-2"
+            >
+              {sending ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <IconSend className="w-4 h-4" />
+              )}
+              {scheduleMode ? "Schedule Email" : "Send Now"}
+            </button>
+          </div>
+
+          {sendStatus && (
+            <p className={`mt-3 text-sm ${sendStatus.includes("✓") ? "text-emerald-400" : "text-rose-400"}`}>
+              {sendStatus}
+            </p>
+          )}
+        </div>
+
+        {/* Tips */}
+        <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6">
+          <h3 className="text-sm font-bold text-white mb-3">Outreach Tips</h3>
+          <ul className="space-y-2 text-xs text-slate-400">
+            <li className="flex items-start gap-2"><span className="text-emerald-400 mt-0.5">•</span> Personalize the first line with something specific about their store.</li>
+            <li className="flex items-start gap-2"><span className="text-emerald-400 mt-0.5">•</span> Keep subject lines under 50 characters for better open rates.</li>
+            <li className="flex items-start gap-2"><span className="text-emerald-400 mt-0.5">•</span> Follow up 3-4 days after the first email if no reply.</li>
+            <li className="flex items-start gap-2"><span className="text-emerald-400 mt-0.5">•</span> Send between 8-10 AM in the recipient's timezone.</li>
+          </ul>
+        </div>
+      </div>
+
+      {/* ─── Sidebar ─── */}
+      <div className="space-y-6">
+        {/* Stats */}
+        <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5">
+          <h3 className="text-xs text-slate-500 uppercase tracking-wider mb-3">This Month</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-800 text-center">
+              <div className="text-xl font-bold text-white">{logs.length}</div>
+              <div className="text-[10px] text-slate-500 mt-1">Total Sent</div>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-800 text-center">
+              <div className="text-xl font-bold text-emerald-400">{logs.filter((l) => l.status === "sent" || l.status === "opened" || l.status === "replied").length}</div>
+              <div className="text-[10px] text-slate-500 mt-1">Delivered</div>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-800 text-center">
+              <div className="text-xl font-bold text-sky-400">{logs.filter((l) => l.status === "opened").length}</div>
+              <div className="text-[10px] text-slate-500 mt-1">Opened</div>
+            </div>
+            <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-800 text-center">
+              <div className="text-xl font-bold text-violet-400">{logs.filter((l) => l.status === "replied").length}</div>
+              <div className="text-[10px] text-slate-500 mt-1">Replied</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Activity */}
+        <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5">
+          <h3 className="text-xs text-slate-500 uppercase tracking-wider mb-3">Recent Activity</h3>
+          {logs.length === 0 ? (
+            <div className="text-center py-6 text-slate-600">
+              <IconMail className="w-8 h-8 mx-auto mb-2 opacity-30" />
+              <p className="text-xs">No outreach yet.</p>
+              <p className="text-[10px] mt-1">Send your first email from the composer.</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {logs.map((log) => (
+                <div key={log.id} className="p-3 rounded-xl bg-slate-950/50 border border-slate-800">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-white font-medium truncate max-w-[140px]">{log.recipient}</span>
+                    <StatusBadge status={log.status} />
+                  </div>
+                  <p className="text-[10px] text-slate-500 truncate mb-1">{log.subject}</p>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-slate-600">
+                      {log.sentAt ? new Date(log.sentAt).toLocaleDateString() : log.scheduledFor ? `Scheduled ${new Date(log.scheduledFor).toLocaleDateString()}` : "Draft"}
+                    </span>
+                    <button onClick={() => deleteLog(log.id)} className="text-slate-600 hover:text-rose-400 transition-colors">
+                      <IconTrash className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Loading fallback ─── */
+function OutreachSkeleton() {
+  return (
+    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 animate-pulse">
+      <div className="xl:col-span-2 space-y-6">
+        <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6 h-[600px]">
+          <div className="h-6 bg-slate-800 rounded w-1/3 mb-6"></div>
+          <div className="h-10 bg-slate-800 rounded mb-4"></div>
+          <div className="h-10 bg-slate-800 rounded mb-4"></div>
+          <div className="h-32 bg-slate-800 rounded mb-4"></div>
+        </div>
+      </div>
+      <div className="space-y-6">
+        <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5 h-48">
+          <div className="h-4 bg-slate-800 rounded w-1/2 mb-3"></div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="h-16 bg-slate-800 rounded"></div>
+            <div className="h-16 bg-slate-800 rounded"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Page Wrapper (Suspense boundary) ─── */
+export default function OutreachPage() {
+  return (
     <div className="min-h-screen bg-[#0b0f1f] text-slate-200">
       {/* Nav */}
       <header className="border-b border-slate-800/60 bg-[#0b0f1e]/80 backdrop-blur sticky top-0 z-50">
@@ -299,223 +537,14 @@ export default function OutreachPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">Outreach Center</h1>
           <p className="text-slate-400">AI-generated email templates personalized for every lead.</p>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* ─── Composer ─── */}
-          <div className="xl:col-span-2 space-y-6">
-            <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6">
-              <div className="flex items-center gap-2 mb-6">
-                <IconSparkles className="w-5 h-5 text-violet-400" />
-                <h2 className="text-lg font-bold text-white">Email Composer</h2>
-              </div>
-
-              {/* Template Selector */}
-              <div className="mb-6">
-                <label className="text-xs text-slate-500 uppercase tracking-wider mb-2 block">AI Template</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {Object.entries(TEMPLATES).map(([key, t]) => (
-                    <button
-                      key={key}
-                      onClick={() => setTemplateKey(key)}
-                      className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors text-left ${
-                        templateKey === key
-                          ? "bg-violet-500/10 text-violet-400 border-violet-500/30"
-                          : "bg-slate-950/50 text-slate-400 border-slate-800 hover:border-slate-700"
-                      }`}
-                    >
-                      {t.name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* From / To */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="text-xs text-slate-500 uppercase tracking-wider mb-1 block">From Name</label>
-                  <input
-                    value={fromName}
-                    onChange={(e) => setFromName(e.target.value)}
-                    placeholder="Your Name"
-                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-500 uppercase tracking-wider mb-1 block">From Email</label>
-                  <input
-                    value={fromEmail}
-                    onChange={(e) => setFromEmail(e.target.value)}
-                    placeholder="you@company.com"
-                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
-                  />
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <label className="text-xs text-slate-500 uppercase tracking-wider mb-1 block">To (Recipient)</label>
-                <input
-                  value={recipient}
-                  onChange={(e) => setRecipient(e.target.value)}
-                  placeholder="owner@store.com"
-                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
-                />
-              </div>
-
-              <div className="mb-4">
-                <label className="text-xs text-slate-500 uppercase tracking-wider mb-1 block">Store Domain</label>
-                <input
-                  value={domain}
-                  onChange={(e) => setDomain(e.target.value)}
-                  placeholder="store.com"
-                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
-                />
-              </div>
-
-              <div className="mb-4">
-                <label className="text-xs text-slate-500 uppercase tracking-wider mb-1 block">Subject</label>
-                <input
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
-                />
-              </div>
-
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs text-slate-500 uppercase tracking-wider">Body</label>
-                  <button onClick={copyToClipboard} className="text-[10px] text-slate-500 hover:text-violet-400 flex items-center gap-1 transition-colors">
-                    {copied ? <IconCheck className="w-3 h-3" /> : <IconCopy className="w-3 h-3" />}
-                    {copied ? "Copied" : "Copy"}
-                  </button>
-                </div>
-                <textarea
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  rows={12}
-                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40 resize-none font-mono leading-relaxed"
-                />
-                <p className="text-[10px] text-slate-600 mt-1">Tip: Personalize the bracketed sections before sending.</p>
-              </div>
-
-              {/* Schedule Toggle */}
-              <div className="flex items-center gap-3 mb-4">
-                <button
-                  onClick={() => setScheduleMode(!scheduleMode)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
-                    scheduleMode ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : "bg-slate-800 text-slate-400 border-slate-700"
-                  }`}
-                >
-                  <IconClock className="w-3.5 h-3.5" />
-                  {scheduleMode ? "Scheduling On" : "Schedule Send"}
-                </button>
-                {scheduleMode && (
-                  <input
-                    type="datetime-local"
-                    value={scheduleDate}
-                    onChange={(e) => setScheduleDate(e.target.value)}
-                    className="px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
-                  />
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={handleSend}
-                  disabled={sending}
-                  className="flex-1 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-semibold rounded-lg text-sm flex items-center justify-center gap-2"
-                >
-                  {sending ? (
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <IconSend className="w-4 h-4" />
-                  )}
-                  {scheduleMode ? "Schedule Email" : "Send Now"}
-                </button>
-              </div>
-
-              {sendStatus && (
-                <p className={`mt-3 text-sm ${sendStatus.includes("✓") ? "text-emerald-400" : "text-rose-400"}`}>
-                  {sendStatus}
-                </p>
-              )}
-            </div>
-
-            {/* Tips */}
-            <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6">
-              <h3 className="text-sm font-bold text-white mb-3">Outreach Tips</h3>
-              <ul className="space-y-2 text-xs text-slate-400">
-                <li className="flex items-start gap-2"><span className="text-emerald-400 mt-0.5">•</span> Personalize the first line with something specific about their store.</li>
-                <li className="flex items-start gap-2"><span className="text-emerald-400 mt-0.5">•</span> Keep subject lines under 50 characters for better open rates.</li>
-                <li className="flex items-start gap-2"><span className="text-emerald-400 mt-0.5">•</span> Follow up 3-4 days after the first email if no reply.</li>
-                <li className="flex items-start gap-2"><span className="text-emerald-400 mt-0.5">•</span> Send between 8-10 AM in the recipient's timezone.</li>
-              </ul>
-            </div>
-          </div>
-
-          {/* ─── Sidebar ─── */}
-          <div className="space-y-6">
-            {/* Stats */}
-            <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5">
-              <h3 className="text-xs text-slate-500 uppercase tracking-wider mb-3">This Month</h3>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-800 text-center">
-                  <div className="text-xl font-bold text-white">{logs.length}</div>
-                  <div className="text-[10px] text-slate-500 mt-1">Total Sent</div>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-800 text-center">
-                  <div className="text-xl font-bold text-emerald-400">{logs.filter((l) => l.status === "sent" || l.status === "opened" || l.status === "replied").length}</div>
-                  <div className="text-[10px] text-slate-500 mt-1">Delivered</div>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-800 text-center">
-                  <div className="text-xl font-bold text-sky-400">{logs.filter((l) => l.status === "opened").length}</div>
-                  <div className="text-[10px] text-slate-500 mt-1">Opened</div>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-800 text-center">
-                  <div className="text-xl font-bold text-violet-400">{logs.filter((l) => l.status === "replied").length}</div>
-                  <div className="text-[10px] text-slate-500 mt-1">Replied</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Recent Activity */}
-            <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5">
-              <h3 className="text-xs text-slate-500 uppercase tracking-wider mb-3">Recent Activity</h3>
-              {logs.length === 0 ? (
-                <div className="text-center py-6 text-slate-600">
-                  <IconMail className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                  <p className="text-xs">No outreach yet.</p>
-                  <p className="text-[10px] mt-1">Send your first email from the composer.</p>
-                </div>
-              ) : (
-                <div className="space-y-3 max-h-96 overflow-y-auto">
-                  {logs.map((log) => (
-                    <div key={log.id} className="p-3 rounded-xl bg-slate-950/50 border border-slate-800">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs text-white font-medium truncate max-w-[140px]">{log.recipient}</span>
-                        <StatusBadge status={log.status} />
-                      </div>
-                      <p className="text-[10px] text-slate-500 truncate mb-1">{log.subject}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-slate-600">
-                          {log.sentAt ? new Date(log.sentAt).toLocaleDateString() : log.scheduledFor ? `Scheduled ${new Date(log.scheduledFor).toLocaleDateString()}` : "Draft"}
-                        </span>
-                        <button onClick={() => deleteLog(log.id)} className="text-slate-600 hover:text-rose-400 transition-colors">
-                          <IconTrash className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <Suspense fallback={<OutreachSkeleton />}>
+          <OutreachComposer />
+        </Suspense>
       </main>
     </div>
   );
