@@ -13,18 +13,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No stores provided" }, { status: 400 });
     }
 
-    // ONLY use columns that exist in your leads table
     const rows = stores.map((s: any) => ({
-      domain: s.domain || "",
+      store_url: s.domain ? `https://${s.domain}` : "",
+      store_name: s.domain || s.shopifyDomain || "Unknown",
       email: s.email || null,
-      country: s.country || null,
-      industry: s.industry || null,
-      source: "storeindex",
+      score: s.quality_score || s.score || 70,
       status: "new",
       created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     }));
 
-    const { error } = await supabase.from("leads").upsert(rows, { onConflict: "domain" });
+    const { error } = await supabase.from("leads").upsert(rows, { onConflict: "store_url" });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -32,9 +31,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ imported: rows.length });
   } catch (err: any) {
-    return NextResponse.json(
-      { error: err.message || "Import failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: err.message || "Import failed" }, { status: 500 });
   }
 }
