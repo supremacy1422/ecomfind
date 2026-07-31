@@ -9,48 +9,47 @@ export async function POST(req: NextRequest) {
 
     const { country, industry, minProducts, maxProducts, limit = 20 } = await req.json();
 
-    // Build filters the way StoreIndex expects them
+    // Build filters
     const filters: Record<string, any> = {};
     if (country) filters.country = country;
     if (industry) filters.industry = industry;
     if (minProducts) filters.minProducts = minProducts;
     if (maxProducts) filters.maxProducts = maxProducts;
 
-    // Try multiple request formats that StoreIndex might accept
-    const attempts = [
-      // Format 1: Simple flat body
+    // Try multiple request formats
+    const attempts: { url: string; method: string; headers: Record<string, string>; body?: string }[] = [
       {
         url: "https://api.storeindex.io/v1/search",
-        body: { ...filters, limit },
+        method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+        body: JSON.stringify({ ...filters, limit }),
       },
-      // Format 2: With query wrapper
       {
         url: "https://api.storeindex.io/v1/search",
-        body: { query: filters, limit },
+        method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+        body: JSON.stringify({ query: filters, limit }),
       },
-      // Format 3: With filter wrapper
       {
         url: "https://api.storeindex.io/v1/search",
-        body: { filter: filters, limit },
+        method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+        body: JSON.stringify({ filter: filters, limit }),
       },
-      // Format 4: x-api-key header instead of Bearer
       {
         url: "https://api.storeindex.io/v1/search",
-        body: { ...filters, limit },
+        method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+        body: JSON.stringify({ ...filters, limit }),
       },
-      // Format 5: POST to /stores endpoint
       {
         url: "https://api.storeindex.io/v1/stores",
-        body: { ...filters, limit },
+        method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+        body: JSON.stringify({ ...filters, limit }),
       },
-      // Format 6: GET with query params
       {
-        url: `https://api.storeindex.io/v1/stores?country=${country || ""}&industry=${industry || ""}&limit=${limit}`,
+        url: `https://api.storeindex.io/v1/stores?country=${encodeURIComponent(country || "")}&industry=${encodeURIComponent(industry || "")}&limit=${limit}`,
         method: "GET",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
       },
@@ -61,30 +60,29 @@ export async function POST(req: NextRequest) {
     for (const attempt of attempts) {
       try {
         const res = await fetch(attempt.url, {
-          method: attempt.method || "POST",
+          method: attempt.method,
           headers: attempt.headers,
-          body: attempt.method === "GET" ? undefined : JSON.stringify(attempt.body),
+          body: attempt.body,
         });
 
         const text = await res.text();
-        console.log(`StoreIndex ${attempt.url} (${attempt.method || "POST"}): ${res.status} - ${text.substring(0, 300)}`);
+        console.log(`StoreIndex ${attempt.method} ${attempt.url}: ${res.status} - ${text.substring(0, 300)}`);
 
         if (res.ok) {
           const json = JSON.parse(text);
-          // Handle various response shapes
-          const stores = json.data || json.stores || json.results || json;
+          const stores = json.data || json.stores || json.results || [];
           const storeArray = Array.isArray(stores) ? stores : [];
           return NextResponse.json({ stores: storeArray, total: json.total || storeArray.length });
         }
 
-        lastError = `${attempt.url}: ${res.status} - ${text.substring(0, 200)}`;
+        lastError = `${attempt.method} ${attempt.url}: ${res.status} - ${text.substring(0, 200)}`;
       } catch (e: any) {
-        lastError = `${attempt.url}: ${e.message}`;
+        lastError = `${attempt.method} ${attempt.url}: ${e.message}`;
       }
     }
 
     return NextResponse.json(
-      { error: `StoreIndex API error. Debug info: ${lastError}` },
+      { error: `StoreIndex API error. Debug: ${lastError}` },
       { status: 502 }
     );
 
