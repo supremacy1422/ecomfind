@@ -4,66 +4,91 @@ export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.STOREINDEX_API_KEY;
     if (!apiKey) {
-      return NextResponse.json(
-        { error: "STOREINDEX_API_KEY not configured" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "STOREINDEX_API_KEY not configured" }, { status: 500 });
     }
 
-    const body = await req.json();
-    console.log("StoreIndex request body:", JSON.stringify(body));
+    const { country, industry, minProducts, maxProducts, limit = 20 } = await req.json();
 
-    // Try the most common StoreIndex endpoint patterns
-    const endpoints = [
-      "https://api.storeindex.io/v1/search",
-      "https://api.storeindex.io/search",
-      "https://api.storeindex.io/v1/stores/search",
+    // Build filters the way StoreIndex expects them
+    const filters: Record<string, any> = {};
+    if (country) filters.country = country;
+    if (industry) filters.industry = industry;
+    if (minProducts) filters.minProducts = minProducts;
+    if (maxProducts) filters.maxProducts = maxProducts;
+
+    // Try multiple request formats that StoreIndex might accept
+    const attempts = [
+      // Format 1: Simple flat body
+      {
+        url: "https://api.storeindex.io/v1/search",
+        body: { ...filters, limit },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+      },
+      // Format 2: With query wrapper
+      {
+        url: "https://api.storeindex.io/v1/search",
+        body: { query: filters, limit },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+      },
+      // Format 3: With filter wrapper
+      {
+        url: "https://api.storeindex.io/v1/search",
+        body: { filter: filters, limit },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+      },
+      // Format 4: x-api-key header instead of Bearer
+      {
+        url: "https://api.storeindex.io/v1/search",
+        body: { ...filters, limit },
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey },
+      },
+      // Format 5: POST to /stores endpoint
+      {
+        url: "https://api.storeindex.io/v1/stores",
+        body: { ...filters, limit },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+      },
+      // Format 6: GET with query params
+      {
+        url: `https://api.storeindex.io/v1/stores?country=${country || ""}&industry=${industry || ""}&limit=${limit}`,
+        method: "GET",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${apiKey}` },
+      },
     ];
 
     let lastError = "";
-    
-    for (const endpoint of endpoints) {
+
+    for (const attempt of attempts) {
       try {
-        const res = await fetch(endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`,
-            "x-api-key": apiKey,
-          },
-          body: JSON.stringify(body),
+        const res = await fetch(attempt.url, {
+          method: attempt.method || "POST",
+          headers: attempt.headers,
+          body: attempt.method === "GET" ? undefined : JSON.stringify(attempt.body),
         });
 
-        console.log(`StoreIndex ${endpoint} status:`, res.status);
+        const text = await res.text();
+        console.log(`StoreIndex ${attempt.url} (${attempt.method || "POST"}): ${res.status} - ${text.substring(0, 300)}`);
 
         if (res.ok) {
-          const json = await res.json();
-          console.log("StoreIndex response:", JSON.stringify(json).substring(0, 500));
-          
-          // Handle different response structures
-          const stores = json.data || json.stores || json.results || [];
-          return NextResponse.json({ stores, total: json.total || stores.length });
+          const json = JSON.parse(text);
+          // Handle various response shapes
+          const stores = json.data || json.stores || json.results || json;
+          const storeArray = Array.isArray(stores) ? stores : [];
+          return NextResponse.json({ stores: storeArray, total: json.total || storeArray.length });
         }
-        
-        lastError = await res.text();
-        console.log(`StoreIndex ${endpoint} error:`, lastError.substring(0, 200));
+
+        lastError = `${attempt.url}: ${res.status} - ${text.substring(0, 200)}`;
       } catch (e: any) {
-        lastError = e.message;
-        console.log(`StoreIndex ${endpoint} exception:`, e.message);
+        lastError = `${attempt.url}: ${e.message}`;
       }
     }
 
-    // If all endpoints failed, return the last error
     return NextResponse.json(
-      { error: `All StoreIndex endpoints failed. Last error: ${lastError.substring(0, 200)}` },
+      { error: `StoreIndex API error. Debug info: ${lastError}` },
       { status: 502 }
     );
 
   } catch (err: any) {
-    console.error("StoreIndex route error:", err);
-    return NextResponse.json(
-      { error: `Server error: ${err.message}` },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: `Server error: ${err.message}` }, { status: 500 });
   }
 }
