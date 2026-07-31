@@ -4,47 +4,66 @@ export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.STOREINDEX_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: "STOREINDEX_API_KEY not configured" }, { status: 500 });
+      return NextResponse.json(
+        { error: "STOREINDEX_API_KEY not configured" },
+        { status: 500 }
+      );
     }
 
     const body = await req.json();
-    const { country, industry, minProducts, maxProducts, limit = 20, page = 1 } = body;
+    console.log("StoreIndex request body:", JSON.stringify(body));
 
-    const filter: Record<string, any> = {};
-    if (country) filter.country = country;
-    if (industry) filter.industry = industry;
-    if (minProducts || maxProducts) {
-      filter.activeProductsRange = {};
-      if (minProducts) filter.activeProductsRange.gte = minProducts;
-      if (maxProducts) filter.activeProductsRange.lte = maxProducts;
+    // Try the most common StoreIndex endpoint patterns
+    const endpoints = [
+      "https://api.storeindex.io/v1/search",
+      "https://api.storeindex.io/search",
+      "https://api.storeindex.io/v1/stores/search",
+    ];
+
+    let lastError = "";
+    
+    for (const endpoint of endpoints) {
+      try {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
+            "x-api-key": apiKey,
+          },
+          body: JSON.stringify(body),
+        });
+
+        console.log(`StoreIndex ${endpoint} status:`, res.status);
+
+        if (res.ok) {
+          const json = await res.json();
+          console.log("StoreIndex response:", JSON.stringify(json).substring(0, 500));
+          
+          // Handle different response structures
+          const stores = json.data || json.stores || json.results || [];
+          return NextResponse.json({ stores, total: json.total || stores.length });
+        }
+        
+        lastError = await res.text();
+        console.log(`StoreIndex ${endpoint} error:`, lastError.substring(0, 200));
+      } catch (e: any) {
+        lastError = e.message;
+        console.log(`StoreIndex ${endpoint} exception:`, e.message);
+      }
     }
 
-    const res = await fetch("https://api.storeindex.io/search", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-      },
-      body: JSON.stringify({
-        filter,
-        limit: Math.min(limit, 50),
-        page,
-      }),
-    });
+    // If all endpoints failed, return the last error
+    return NextResponse.json(
+      { error: `All StoreIndex endpoints failed. Last error: ${lastError.substring(0, 200)}` },
+      { status: 502 }
+    );
 
-    if (!res.ok) {
-      const text = await res.text();
-      return NextResponse.json({ error: `StoreIndex error: ${text}` }, { status: res.status });
-    }
-
-    const json = await res.json();
-    return NextResponse.json({
-      stores: json.data || [],
-      total: json.total || 0,
-      page: json.page || page,
-      limit: json.limit || limit,
-    });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Search failed" }, { status: 500 });
+    console.error("StoreIndex route error:", err);
+    return NextResponse.json(
+      { error: `Server error: ${err.message}` },
+      { status: 500 }
+    );
   }
 }

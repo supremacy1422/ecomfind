@@ -1,13 +1,38 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { createClient } from "@supabase/supabase-js";
-import StoreIndexSearch from "@/components/StoreIndexSearch";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+/* ─── CSV Parser ─── */
+function parseCSV(text: string): string[][] {
+  const result: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const nextChar = text[i + 1];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (nextChar === '"') { cell += '"'; i++; } else { inQuotes = false; }
+      } else { cell += char; }
+    } else {
+      if (char === '"') { inQuotes = true; }
+      else if (char === ',') { row.push(cell.trim()); cell = ""; }
+      else if (char === '\n') { row.push(cell.trim()); if (row.some(c => c.length > 0)) result.push(row); row = []; cell = ""; }
+      else if (char !== '\r') { cell += char; }
+    }
+  }
+  if (cell.length > 0 || row.length > 0) { row.push(cell.trim()); if (row.some(c => c.length > 0)) result.push(row); }
+  return result;
+}
 
 /* ─── Icons ─── */
 const IconSearch = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -37,8 +62,26 @@ const IconCheck = ({ className = "w-4 h-4" }: { className?: string }) => (
 const IconAlert = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
 );
-const IconPlus = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+const IconFilter = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+);
+const IconChevronLeft = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+);
+const IconChevronRight = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+);
+const IconUsers = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+);
+const IconStar = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+);
+const IconMessage = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+);
+const IconWorld = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
 );
 
 interface Lead {
@@ -51,29 +94,47 @@ interface Lead {
   industry?: string;
   company_size?: string;
   revenue_range?: string;
-  active_products?: string;
-  installed_apps?: string[];
   quality_score?: number;
   status?: string;
   source?: string;
   created_at?: string;
 }
 
+interface StoreResult {
+  domain: string;
+  shopifyDomain?: string;
+  email?: string;
+  country?: string;
+  industry?: string;
+}
+
+const QUICK_FILTERS = ["fashion", "jewelry", "home", "beauty", "fitness", "electronics", "pets"];
+
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [nicheFilter, setNicheFilter] = useState("all");
+  const [activeQuickFilter, setActiveQuickFilter] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState("");
   const [importError, setImportError] = useState("");
   const [osintLoading, setOsintLoading] = useState<string | null>(null);
-  const [user, setUser] = useState<any>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 12;
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null));
-    fetchLeads();
-  }, []);
+  /* ─── StoreIndex State ─── */
+  const [siCountry, setSiCountry] = useState("US");
+  const [siIndustry, setSiIndustry] = useState("");
+  const [siProducts, setSiProducts] = useState("10-50");
+  const [siResults, setSiResults] = useState<StoreResult[]>([]);
+  const [siLoading, setSiLoading] = useState(false);
+  const [siError, setSiError] = useState("");
+  const [siImporting, setSiImporting] = useState(false);
+  const [siImportCount, setSiImportCount] = useState(0);
+
+  useEffect(() => { fetchLeads(); }, []);
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
@@ -82,81 +143,160 @@ export default function LeadsPage() {
     setLoading(false);
   }, []);
 
-  const toggleSelect = (id: string) => {
-    setSelected(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
+  /* ─── StoreIndex Search ─── */
+  const searchStoreIndex = async () => {
+    setSiLoading(true);
+    setSiError("");
+    setSiResults([]);
+    try {
+      const res = await fetch("/api/leads/storeindex-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          country: siCountry || undefined,
+          industry: siIndustry || undefined,
+          minProducts: parseInt(siProducts.split("-")[0]) || undefined,
+          maxProducts: siProducts.includes("+") ? undefined : parseInt(siProducts.split("-")[1]) || undefined,
+          limit: 20,
+          page: 1,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setSiError(json.error || `API error: ${res.status}`);
+        return;
+      }
+      if (!json.stores || json.stores.length === 0) {
+        setSiError("No stores found. Try broader filters (Any country, All Industries).");
+        return;
+      }
+      setSiResults(json.stores);
+    } catch (err: any) {
+      setSiError(err.message || "Network error.");
+    } finally {
+      setSiLoading(false);
+    }
   };
 
-  const selectAll = () => {
-    if (selected.size === filteredLeads.length) setSelected(new Set());
-    else setSelected(new Set(filteredLeads.map(l => l.id)));
+  const importStoreIndex = async () => {
+    if (siResults.length === 0) return;
+    setSiImporting(true);
+    setSiError("");
+    try {
+      const res = await fetch("/api/leads/storeindex-import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stores: siResults }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setSiError(json.error || "Import failed");
+      } else {
+        setSiImportCount(json.imported || 0);
+        setSiResults([]);
+        fetchLeads();
+      }
+    } catch (err: any) {
+      setSiError(err.message || "Import error");
+    } finally {
+      setSiImporting(false);
+    }
+  };
+
+  /* ─── Filtering ─── */
+  const filteredLeads = useMemo(() => {
+    let result = leads;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(l => l.domain?.toLowerCase().includes(q) || l.email?.toLowerCase().includes(q) || l.country?.toLowerCase().includes(q) || l.industry?.toLowerCase().includes(q));
+    }
+    if (activeQuickFilter) result = result.filter(l => l.industry?.toLowerCase().includes(activeQuickFilter.toLowerCase()));
+    if (nicheFilter !== "all") result = result.filter(l => l.industry?.toLowerCase().includes(nicheFilter.toLowerCase()));
+    return result;
+  }, [leads, search, activeQuickFilter, nicheFilter]);
+
+  const paginatedLeads = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredLeads.slice(start, start + pageSize);
+  }, [filteredLeads, currentPage]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredLeads.length / pageSize));
+  useEffect(() => { setCurrentPage(1); }, [search, activeQuickFilter, nicheFilter]);
+
+  const stats = useMemo(() => ({
+    total: leads.length,
+    validEmails: leads.filter(l => l.email && l.email.length > 3).length,
+    highQuality: leads.filter(l => (l.quality_score || 0) >= 70).length,
+    uncontacted: leads.filter(l => !l.status || l.status === "new").length,
+  }), [leads]);
+
+  const toggleSelect = (id: string) => {
+    setSelected(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  };
+
+  const selectAllOnPage = () => {
+    const pageIds = paginatedLeads.map(l => l.id);
+    const allSelected = pageIds.every(id => selected.has(id));
+    setSelected(prev => { const next = new Set(prev); if (allSelected) pageIds.forEach(id => next.delete(id)); else pageIds.forEach(id => next.add(id)); return next; });
+  };
+
+  const selectAllWithEmail = () => {
+    const emailIds = filteredLeads.filter(l => l.email).map(l => l.id);
+    setSelected(prev => { const next = new Set(prev); emailIds.forEach(id => next.add(id)); return next; });
   };
 
   const deleteSelected = async () => {
     if (selected.size === 0) return;
-    const ids = Array.from(selected);
-    await supabase.from("leads").delete().in("id", ids);
+    if (!confirm(`Delete ${selected.size} selected leads?`)) return;
+    await supabase.from("leads").delete().in("id", Array.from(selected));
     setSelected(new Set());
     fetchLeads();
   };
 
+  /* ─── CSV Import ─── */
   const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 4 * 1024 * 1024) {
-      setImportError("File exceeds 4MB limit.");
-      return;
-    }
+    if (file.size > 4 * 1024 * 1024) { setImportError("File exceeds 4MB."); return; }
     const text = await file.text();
     parseAndImport(text);
   };
 
   const parseAndImport = async (text: string) => {
     setImportError("");
-    const lines = text.split(/\r?\n/).filter(l => l.trim());
-    if (lines.length < 2) { setImportError("CSV must have a header row and at least one data row."); return; }
-    const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
+    const parsed = parseCSV(text);
+    if (parsed.length < 2) { setImportError("CSV needs header + data row."); return; }
+    const headers = parsed[0].map(h => h.toLowerCase().trim().replace(/^["']|["']$/g, ""));
+    const getCol = (names: string[]) => { for (const n of names) { const i = headers.indexOf(n.toLowerCase()); if (i !== -1) return i; } return -1; };
+    const domainIdx = getCol(["domain","store_name","store name","name","url","website","site"]);
+    const emailIdx = getCol(["email","e-mail","contact_email","contact email"]);
+    if (domainIdx === -1 && emailIdx === -1) { setImportError("Need domain or email column."); return; }
+
     const rows: any[] = [];
-    for (let i = 1; i < lines.length; i++) {
-      const vals = lines[i].split(",");
+    for (let i = 1; i < parsed.length; i++) {
+      const vals = parsed[i];
       const row: any = { source: "csv_import", created_at: new Date().toISOString() };
-      headers.forEach((h, idx) => {
-        if (h === "email") row.email = vals[idx]?.trim();
-        if (h === "domain") row.domain = vals[idx]?.trim();
-        if (h === "first_name") row.first_name = vals[idx]?.trim();
-        if (h === "last_name") row.last_name = vals[idx]?.trim();
-        if (h === "country") row.country = vals[idx]?.trim();
-        if (h === "industry") row.industry = vals[idx]?.trim();
-      });
-      if (row.domain || row.email) rows.push(row);
+      const domain = domainIdx !== -1 ? vals[domainIdx]?.trim() : "";
+      const email = emailIdx !== -1 ? vals[emailIdx]?.trim() : "";
+      if (!domain && !email) continue;
+      if (domain) row.domain = domain;
+      if (email) row.email = email;
+      rows.push(row);
     }
-    if (rows.length === 0) { setImportError("No valid rows found."); return; }
+    if (rows.length === 0) { setImportError("No valid rows."); return; }
     const { error } = await supabase.from("leads").upsert(rows, { onConflict: "domain" });
     if (error) setImportError(error.message);
     else { setShowImport(false); setImportText(""); fetchLeads(); }
   };
 
-  const handlePasteImport = () => {
-    parseAndImport(importText);
-  };
-
   const downloadCSV = () => {
-    const headers = ["domain", "email", "first_name", "last_name", "country", "industry", "company_size", "revenue_range", "quality_score", "status"];
-    const rows = filteredLeads.map(l => [
-      l.domain || "", l.email || "", l.first_name || "", l.last_name || "",
-      l.country || "", l.industry || "", l.company_size || "", l.revenue_range || "",
-      l.quality_score || "", l.status || ""
-    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
-    const csv = [headers.join(","), ...rows].join("\n");
+    const headers = ["domain","email","first_name","last_name","country","industry","company_size","revenue_range","quality_score","status"];
+    const rows = filteredLeads.map(l => [l.domain||"",l.email||"",l.first_name||"",l.last_name||"",l.country||"",l.industry||"",l.company_size||"",l.revenue_range||"",l.quality_score||"",l.status||""].map(v => `"${String(v).replace(/"/g,'""')}"`).join(","));
+    const csv = [headers.join(","),...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = `revenueai-leads-${new Date().toISOString().split("T")[0]}.csv`;
-    a.click();
+    a.href = url; a.download = `ecomfind-leads-${new Date().toISOString().split("T")[0]}.csv`; a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -164,35 +304,20 @@ export default function LeadsPage() {
     if (!lead.domain) return;
     setOsintLoading(lead.id);
     try {
-      const res = await fetch("/api/leads/discover", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domain: lead.domain }),
-      });
+      const res = await fetch("/api/leads/discover", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ domain: lead.domain }) });
       const json = await res.json();
-      if (json.emails && json.emails.length > 0) {
-        await supabase.from("leads").update({ email: json.emails[0] }).eq("id", lead.id);
-        fetchLeads();
-      }
-    } catch {
-      // ignore
-    } finally {
-      setOsintLoading(null);
-    }
+      if (json.emails?.length > 0) { await supabase.from("leads").update({ email: json.emails[0] }).eq("id", lead.id); fetchLeads(); }
+    } catch {} finally { setOsintLoading(null); }
   };
-
-  const filteredLeads = leads.filter(l => {
-    const q = search.toLowerCase();
-    return (l.domain?.toLowerCase().includes(q) || l.email?.toLowerCase().includes(q) || l.country?.toLowerCase().includes(q) || l.industry?.toLowerCase().includes(q));
-  });
 
   const qualityColor = (score?: number) => {
-    if (!score) return "text-slate-500";
-    if (score >= 80) return "text-emerald-400";
-    if (score >= 60) return "text-amber-400";
-    if (score >= 40) return "text-orange-400";
-    return "text-rose-400";
+    if (!score) return "bg-slate-800 text-slate-400 border-slate-700";
+    if (score >= 80) return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+    if (score >= 60) return "bg-amber-500/10 text-amber-400 border-amber-500/20";
+    if (score >= 40) return "bg-orange-500/10 text-orange-400 border-orange-500/20";
+    return "bg-rose-500/10 text-rose-400 border-rose-500/20";
   };
+  const qualityLabel = (score?: number) => { if (!score) return "—"; if (score >= 80) return "Excellent"; if (score >= 60) return "Good"; if (score >= 40) return "Fair"; return "Poor"; };
 
   return (
     <div className="min-h-screen bg-[#0b0f1f] text-slate-200">
@@ -204,14 +329,12 @@ export default function LeadsPage() {
               <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
               <span className="text-sm font-medium hidden sm:inline">Home</span>
             </a>
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-              <IconZap className="w-5 h-5 text-emerald-400" />
-            </div>
-            <span className="font-bold text-white tracking-tight">RevenueAI</span>
+            <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center"><IconZap className="w-5 h-5 text-violet-400" /></div>
+            <span className="font-bold text-white tracking-tight">EcomFind</span>
           </div>
           <nav className="hidden md:flex items-center gap-1">
             <a href="/discover" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Audit</a>
-            <a href="/leads" className="px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 text-sm font-medium border border-emerald-500/20">Leads</a>
+            <a href="/leads" className="px-3 py-1.5 rounded-lg bg-violet-500/10 text-violet-400 text-sm font-medium border border-violet-500/20">Leads</a>
             <a href="/outreach" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Outreach</a>
             <a href="/about" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">About</a>
           </nav>
@@ -220,142 +343,193 @@ export default function LeadsPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-white">Lead Management</h1>
-            <p className="text-sm text-slate-400 mt-1">Import, discover, and manage your outreach targets.</p>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-white mb-2">Lead Discovery Engine</h1>
+          <p className="text-slate-400">Find Shopify stores with validated owner emails and high-intent signals.</p>
+        </div>
+
+        {/* ─── StoreIndex Search (Inline, no modal) ─── */}
+        <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <IconWorld className="w-5 h-5 text-emerald-400" />
+            <h3 className="text-sm font-semibold text-white">StoreIndex Search</h3>
+            {siImportCount > 0 && <span className="ml-auto text-xs text-emerald-400">✓ {siImportCount} imported</span>}
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500">{leads.length} total leads</span>
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
+            <div>
+              <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">Country</label>
+              <select value={siCountry} onChange={e => setSiCountry(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white">
+                <option value="US">United States</option><option value="GB">United Kingdom</option><option value="CA">Canada</option>
+                <option value="AU">Australia</option><option value="DE">Germany</option><option value="FR">France</option>
+                <option value="SE">Sweden</option><option value="NL">Netherlands</option><option value="">Any</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">Industry</label>
+              <select value={siIndustry} onChange={e => setSiIndustry(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white">
+                <option value="">All Industries</option>
+                {QUICK_FILTERS.map(f => <option key={f} value={f.charAt(0).toUpperCase()+f.slice(1)}>{f.charAt(0).toUpperCase()+f.slice(1)}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">Products</label>
+              <select value={siProducts} onChange={e => setSiProducts(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white">
+                <option value="1-10">1-10</option><option value="10-50">10-50</option><option value="50-100">50-100</option>
+                <option value="100-500">100-500</option><option value="500-99999">500+</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button onClick={searchStoreIndex} disabled={siLoading} className="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg text-sm disabled:opacity-50">
+                {siLoading ? "Searching..." : "Search"}
+              </button>
+            </div>
+          </div>
+          {siError && <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">{siError}</div>}
+          {siResults.length > 0 && (
+            <div className="border-t border-slate-800 pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs text-slate-400">{siResults.length} stores found</span>
+                <button onClick={importStoreIndex} disabled={siImporting} className="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold disabled:opacity-50">
+                  {siImporting ? "Importing..." : "Import All to Leads"}
+                </button>
+              </div>
+              <div className="max-h-64 overflow-y-auto space-y-2">
+                {siResults.map((s, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-slate-950/50 border border-slate-800">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{s.domain || s.shopifyDomain || "Unknown"}</p>
+                      <p className="text-xs text-slate-500">{s.country} {s.industry && `· ${s.industry}`} {s.email && `· ${s.email}`}</p>
+                    </div>
+                    {s.email && <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">Has Email</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {!siLoading && !siError && siResults.length === 0 && (
+            <div className="text-center py-6 text-slate-600"><p className="text-xs">No results yet. Use filters and click Search.</p></div>
+          )}
+        </div>
+
+        {/* Search & Controls */}
+        <div className="flex flex-col lg:flex-row gap-4 mb-6">
+          <div className="flex-1 flex gap-2">
+            <div className="relative flex-1">
+              <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by domain, email, country, or niche..." className="w-full pl-10 pr-4 py-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/40" />
+            </div>
+            <select value={nicheFilter} onChange={e => setNicheFilter(e.target.value)} className="px-4 py-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-sm text-slate-300">
+              <option value="all">All Niches</option>
+              {QUICK_FILTERS.map(f => <option key={f} value={f}>{f.charAt(0).toUpperCase()+f.slice(1)}</option>)}
+            </select>
+            <button onClick={() => { setSearch(""); setNicheFilter("all"); setActiveQuickFilter(null); }} className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm text-slate-300">Clear</button>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setShowImport(!showImport)} className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-xl text-sm flex items-center gap-2"><IconUpload className="w-4 h-4" /> Import CSV</button>
+            <button onClick={downloadCSV} disabled={filteredLeads.length===0} className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm disabled:opacity-50 flex items-center gap-2"><IconDownload className="w-4 h-4" /> Export</button>
           </div>
         </div>
 
-        {/* StoreIndex Search */}
-        <StoreIndexSearch onImport={fetchLeads} />
-
-        {/* Controls */}
-        <div className="flex flex-wrap items-center gap-3 mb-6">
-          <button onClick={() => setShowImport(!showImport)} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold rounded-lg text-sm transition-all flex items-center gap-1.5">
-            <IconUpload className="w-4 h-4" /> Import CSV
-          </button>
-          <button onClick={downloadCSV} disabled={filteredLeads.length === 0} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50">
-            <IconDownload className="w-4 h-4" /> Export CSV
-          </button>
-          {selected.size > 0 && (
-            <button onClick={deleteSelected} className="px-4 py-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
-              <IconTrash className="w-4 h-4" /> Delete ({selected.size})
+        {/* Quick Filters */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {QUICK_FILTERS.map(filter => (
+            <button key={filter} onClick={() => setActiveQuickFilter(activeQuickFilter===filter?null:filter)} className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${activeQuickFilter===filter?"bg-violet-500/20 text-violet-300 border-violet-500/30":"bg-slate-900/60 text-slate-400 border-slate-700 hover:border-slate-600"}`}>
+              {filter.charAt(0).toUpperCase()+filter.slice(1)}
             </button>
-          )}
-          <div className="relative flex-1 min-w-[200px] ml-auto">
-            <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search leads..."
-              className="w-full pl-9 pr-4 py-2 bg-slate-900/60 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/40" />
-          </div>
+          ))}
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5"><div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Total Leads</div><div className="text-2xl font-bold text-white">{stats.total}</div></div>
+          <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5"><div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Valid Emails</div><div className="text-2xl font-bold text-emerald-400">{stats.validEmails}</div></div>
+          <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5"><div className="text-xs text-slate-500 uppercase tracking-wider mb-1">High Quality</div><div className="text-2xl font-bold text-violet-400">{stats.highQuality}</div></div>
+          <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5"><div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Uncontacted</div><div className="text-2xl font-bold text-amber-400">{stats.uncontacted}</div></div>
         </div>
 
         {/* Import Panel */}
         {showImport && (
-          <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 mb-6">
+          <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 mb-8">
             <div className="flex items-start gap-3 mb-4 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10">
               <IconAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm text-amber-400 font-medium">File Size Limit: 4MB</p>
-                <p className="text-xs text-slate-400">Upload CSV files only. Max 4MB per file. Supported columns: domain, email, first_name, last_name, country, industry.</p>
-              </div>
+              <div><p className="text-sm text-amber-400 font-medium">File Size Limit: 4MB</p><p className="text-xs text-slate-400">Upload CSV with columns: domain, email, first_name, last_name, country, industry, etc.</p></div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-xs text-slate-500 uppercase tracking-wider mb-2 block">Upload CSV File</label>
-                <input type="file" accept=".csv" onChange={handleCSVUpload}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-300 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-emerald-500 file:text-slate-950 file:text-xs file:font-semibold hover:file:bg-emerald-400" />
+                <label className="text-xs text-slate-500 uppercase tracking-wider mb-2 block">Upload CSV</label>
+                <input type="file" accept=".csv" onChange={handleCSVUpload} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-300 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-violet-600 file:text-white file:text-xs file:font-semibold" />
               </div>
               <div>
-                <label className="text-xs text-slate-500 uppercase tracking-wider mb-2 block">Or Paste CSV Content</label>
-                <textarea value={importText} onChange={(e) => setImportText(e.target.value)} rows={3} placeholder="domain,email,first_name..."
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 resize-none mb-2" />
-                <button onClick={handlePasteImport} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold rounded-lg text-xs transition-all">Import Pasted Data</button>
+                <label className="text-xs text-slate-500 uppercase tracking-wider mb-2 block">Or Paste CSV</label>
+                <textarea value={importText} onChange={e => setImportText(e.target.value)} rows={3} placeholder="domain,email,first_name..." className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder-slate-600 resize-none mb-2" />
+                <button onClick={() => parseAndImport(importText)} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-lg text-xs">Import Pasted Data</button>
               </div>
             </div>
             {importError && <p className="text-rose-400 text-sm mt-3 flex items-center gap-1"><IconAlert className="w-4 h-4" /> {importError}</p>}
           </div>
         )}
 
-        {/* Leads Table */}
-        <div className="rounded-2xl bg-slate-900/40 border border-slate-800 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-xs text-slate-500 uppercase bg-slate-950/50">
-                <tr>
-                  <th className="px-4 py-3 w-10">
-                    <input type="checkbox" checked={filteredLeads.length > 0 && selected.size === filteredLeads.length} onChange={selectAll}
-                      className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500/50" />
-                  </th>
-                  <th className="px-4 py-3">Domain</th>
-                  <th className="px-4 py-3">Email</th>
-                  <th className="px-4 py-3">Country</th>
-                  <th className="px-4 py-3">Industry</th>
-                  <th className="px-4 py-3">Quality</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {filteredLeads.map((lead) => (
-                  <tr key={lead.id} className="hover:bg-slate-800/30">
-                    <td className="px-4 py-3">
-                      <input type="checkbox" checked={selected.has(lead.id)} onChange={() => toggleSelect(lead.id)}
-                        className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-emerald-500 focus:ring-emerald-500/50" />
-                    </td>
-                    <td className="px-4 py-3">
-                      <a href={`https://${lead.domain}`} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline font-medium">{lead.domain}</a>
-                    </td>
-                    <td className="px-4 py-3 text-slate-300">
-                      {lead.email ? (
-                        <span className="flex items-center gap-1"><IconMail className="w-3 h-3 text-slate-500" /> {lead.email}</span>
-                      ) : (
-                        <button onClick={() => findEmailOSINT(lead)} disabled={osintLoading === lead.id}
-                          className="text-xs px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 transition-colors flex items-center gap-1">
-                          {osintLoading === lead.id ? <span className="animate-spin w-3 h-3 border-2 border-slate-500 border-t-transparent rounded-full" /> : <IconSearch className="w-3 h-3" />}
-                          Find Email
-                        </button>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-400">{lead.country || "—"}</td>
-                    <td className="px-4 py-3 text-slate-400">{lead.industry || "—"}</td>
-                    <td className="px-4 py-3">
-                      <span className={`font-bold ${qualityColor(lead.quality_score)}`}>{lead.quality_score ?? "—"}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full border ${lead.status === "contacted" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : lead.status === "replied" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : "bg-slate-800 text-slate-400 border-slate-700"}`}>
-                        {lead.status || "new"}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {lead.email && (
-                          <a href={`/outreach?email=${encodeURIComponent(lead.email)}`}
-                            className="px-2 py-1 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 rounded text-xs border border-emerald-500/20 transition-colors flex items-center gap-1">
-                            <IconMail className="w-3 h-3" /> Outreach
-                          </a>
-                        )}
-                        <button onClick={async () => { await supabase.from("leads").delete().eq("id", lead.id); fetchLeads(); }}
-                          className="p-1 text-slate-500 hover:text-rose-400 transition-colors">
-                          <IconTrash className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {/* Bulk Actions */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <button onClick={selectAllOnPage} className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs text-slate-300">Select All on Page</button>
+            <button onClick={selectAllWithEmail} className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs text-slate-300">Select All With Email</button>
+            {selected.size > 0 && <button onClick={deleteSelected} className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 rounded-lg text-xs font-medium flex items-center gap-1.5"><IconTrash className="w-3 h-3" /> Delete ({selected.size})</button>}
           </div>
-          {filteredLeads.length === 0 && !loading && (
-            <div className="text-center py-16 text-slate-600">
-              <IconGlobe className="w-10 h-10 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">No leads yet. Import a CSV or search StoreIndex above.</p>
-            </div>
-          )}
+          <span className="text-xs text-slate-500">Showing {paginatedLeads.length} of {filteredLeads.length} leads · Page {currentPage} of {totalPages}</span>
         </div>
+
+        {/* Lead Cards */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {Array.from({length:6}).map((_,i) => <div key={i} className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5 animate-pulse"><div className="h-4 bg-slate-800 rounded w-3/4 mb-3"></div><div className="h-3 bg-slate-800 rounded w-1/2 mb-2"></div><div className="h-3 bg-slate-800 rounded w-2/3"></div></div>)}
+          </div>
+        ) : paginatedLeads.length === 0 ? (
+          <div className="text-center py-20 text-slate-600"><IconGlobe className="w-12 h-12 mx-auto mb-4 opacity-30" /><p className="text-sm mb-2">No leads found.</p><p className="text-xs">Import a CSV or search StoreIndex to get started.</p></div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
+            {paginatedLeads.map(lead => (
+              <div key={lead.id} className={`group rounded-2xl border p-5 transition-all hover:scale-[1.01] ${selected.has(lead.id)?"bg-violet-500/5 border-violet-500/30":"bg-slate-900/40 border-slate-800 hover:border-slate-700"}`}>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <input type="checkbox" checked={selected.has(lead.id)} onChange={() => toggleSelect(lead.id)} className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-violet-500" />
+                    <div>
+                      <a href={`https://${lead.domain}`} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-white hover:text-violet-400 transition-colors">{lead.domain}</a>
+                      <p className="text-xs text-slate-500">{lead.country || "Unknown location"}</p>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${qualityColor(lead.quality_score)}`}>{qualityLabel(lead.quality_score)}</span>
+                </div>
+                <div className="space-y-2 mb-4">
+                  {lead.industry && <div className="flex items-center gap-2 text-xs text-slate-400"><IconFilter className="w-3 h-3" /><span className="capitalize">{lead.industry}</span></div>}
+                  {lead.email ? <div className="flex items-center gap-2 text-xs text-emerald-400"><IconCheck className="w-3 h-3" /><span className="truncate">{lead.email}</span></div> : <div className="flex items-center gap-2 text-xs text-slate-500"><IconMail className="w-3 h-3" /><span>No email</span></div>}
+                  {lead.company_size && <div className="flex items-center gap-2 text-xs text-slate-400"><IconUsers className="w-3 h-3" /><span>{lead.company_size}</span></div>}
+                  {lead.revenue_range && <div className="flex items-center gap-2 text-xs text-slate-400"><IconStar className="w-3 h-3" /><span>{lead.revenue_range}</span></div>}
+                </div>
+                <div className="flex items-center gap-2 pt-3 border-t border-slate-800">
+                  {lead.email ? (
+                    <a href={`/outreach?email=${encodeURIComponent(lead.email)}&domain=${encodeURIComponent(lead.domain)}`} className="flex-1 px-3 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"><IconMessage className="w-3 h-3" /> Audit & Outreach</a>
+                  ) : (
+                    <button onClick={() => findEmailOSINT(lead)} disabled={osintLoading===lead.id} className="flex-1 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5 border border-slate-700">
+                      {osintLoading===lead.id ? <span className="animate-spin w-3 h-3 border-2 border-slate-500 border-t-transparent rounded-full" /> : <IconSearch className="w-3 h-3" />}
+                      Find Email
+                    </button>
+                  )}
+                  <button onClick={async () => { if(!confirm("Delete this lead?"))return; await supabase.from("leads").delete().eq("id",lead.id); fetchLeads(); }} className="p-2 text-slate-500 hover:text-rose-400 transition-colors"><IconTrash className="w-4 h-4" /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2">
+            <button onClick={() => setCurrentPage(p => Math.max(1,p-1))} disabled={currentPage===1} className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 disabled:opacity-40"><IconChevronLeft className="w-4 h-4" /></button>
+            {Array.from({length:totalPages},(_,i)=>i+1).map(page => <button key={page} onClick={() => setCurrentPage(page)} className={`w-9 h-9 rounded-lg text-sm font-medium ${currentPage===page?"bg-violet-600 text-white":"bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300"}`}>{page}</button>)}
+            <button onClick={() => setCurrentPage(p => Math.min(totalPages,p+1))} disabled={currentPage===totalPages} className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 disabled:opacity-40"><IconChevronRight className="w-4 h-4" /></button>
+          </div>
+        )}
       </main>
     </div>
   );
