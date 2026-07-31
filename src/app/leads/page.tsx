@@ -115,6 +115,7 @@ interface StoreResult {
   email?: string;
   country?: string;
   industry?: string;
+  createdAt?: string;
 }
 
 export default function LeadsPage() {
@@ -131,6 +132,9 @@ export default function LeadsPage() {
   const [siCountry, setSiCountry] = useState("US");
   const [siIndustry, setSiIndustry] = useState("");
   const [siProducts, setSiProducts] = useState("10-50");
+  const [siYear, setSiYear] = useState("");
+  const [siMonth, setSiMonth] = useState("");
+  const [siDay, setSiDay] = useState("");
   const [siResults, setSiResults] = useState<StoreResult[]>([]);
   const [siLoading, setSiLoading] = useState(false);
   const [siError, setSiError] = useState("");
@@ -164,6 +168,9 @@ export default function LeadsPage() {
           industry: siIndustry || undefined,
           minProducts: parseInt(siProducts.split("-")[0]) || undefined,
           maxProducts: siProducts.includes("+") ? undefined : parseInt(siProducts.split("-")[1]) || undefined,
+          createdYear: siYear ? parseInt(siYear) : undefined,
+          createdMonth: siMonth ? parseInt(siMonth) : undefined,
+          createdDay: siDay ? parseInt(siDay) : undefined,
           limit: 20,
           page: 1,
         }),
@@ -461,6 +468,68 @@ export default function LeadsPage() {
                 <option value="500-99999">500+</option>
               </select>
             </div>
+            <div>
+              <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">Year Created</label>
+              <select value={siYear} onChange={(e) => setSiYear(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white">
+                <option value="">Any Year</option>
+                <option value="2024">2024</option>
+                <option value="2023">2023</option>
+                <option value="2022">2022</option>
+                <option value="2021">2021</option>
+                <option value="2020">2020</option>
+                <option value="2019">2019</option>
+                <option value="2018">2018</option>
+                <option value="2017">2017</option>
+                <option value="2016">2016</option>
+                <option value="2015">2015</option>
+                <option value="2014">2014</option>
+                <option value="2013">2013</option>
+                <option value="2012">2012</option>
+                <option value="2011">2011</option>
+                <option value="2010">2010</option>
+                <option value="2009">2009</option>
+                <option value="2008">2008</option>
+                <option value="2007">2007</option>
+                <option value="2006">2006</option>
+                <option value="2005">2005</option>
+                <option value="2000">2000s</option>
+                <option value="1990">1990s</option>
+                <option value="1980">1980s</option>
+                <option value="1970">1970s</option>
+                <option value="1960">1960s</option>
+                <option value="1950">1950s</option>
+                <option value="1940">1940s</option>
+                <option value="1930">1930s</option>
+                <option value="1900">1900s</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">Month</label>
+              <select value={siMonth} onChange={(e) => setSiMonth(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white">
+                <option value="">Any Month</option>
+                <option value="1">January</option>
+                <option value="2">February</option>
+                <option value="3">March</option>
+                <option value="4">April</option>
+                <option value="5">May</option>
+                <option value="6">June</option>
+                <option value="7">July</option>
+                <option value="8">August</option>
+                <option value="9">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">Day</label>
+              <select value={siDay} onChange={(e) => setSiDay(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white">
+                <option value="">Any Day</option>
+                {Array.from({length: 31}, (_, i) => (
+                  <option key={i + 1} value={i + 1}>{i + 1}</option>
+                ))}
+              </select>
+            </div>
             <div className="flex items-end">
               <button onClick={searchStoreIndex} disabled={siLoading} className="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg text-sm disabled:opacity-50">
                 {siLoading ? "Searching..." : "Search"}
@@ -507,7 +576,7 @@ export default function LeadsPage() {
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-white truncate">{s.domain || s.shopifyDomain || "Unknown"}</p>
                       <p className="text-xs text-slate-500">
-                        {s.country} {s.industry && `· ${s.industry}`} {s.email && `· ${s.email}`}
+                        {s.country} {s.industry && `· ${s.industry}`} {s.createdAt && `· Est. ${new Date(s.createdAt).getFullYear()}`} {s.email && `· ${s.email}`}
                       </p>
                     </div>
                     {s.email && <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">Has Email</span>}

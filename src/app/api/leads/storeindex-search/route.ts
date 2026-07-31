@@ -1,55 +1,94 @@
 import { NextRequest, NextResponse } from "next/server";
+import { searchStores } from "@/lib/shopify-stores";
 
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = process.env.STOREINDEX_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json({ error: "STOREINDEX_API_KEY not configured" }, { status: 500 });
-    }
-
     const body = await req.json();
-    const { country, industry, minProducts, maxProducts, limit = 20, page = 1 } = body;
+    const { country, industry, minProducts, maxProducts, createdYear, createdMonth, createdDay, limit = 20, page = 1 } = body;
 
-    const filter: Record<string, any> = {};
-    if (country) filter.country = country;
-    if (industry) filter.industry = industry;
-    if (minProducts || maxProducts) {
-      filter.activeProductsRange = {};
-      if (minProducts) filter.activeProductsRange.gte = minProducts;
-      if (maxProducts) filter.activeProductsRange.lte = maxProducts;
+    // Try StoreIndex API first
+    const apiKey = process.env.STOREINDEX_API_KEY;
+    let storeIndexResults: any[] = [];
+    let usedFallback = true;
+
+    if (apiKey) {
+      try {
+        const res = await fetch("https://api.storeindex.com/v1/search", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            filters: {
+              country: country || undefined,
+              industry: industry || undefined,
+              activeProductsRange: minProducts || maxProducts ? {
+                gte: minProducts || 0,
+                lte: maxProducts || 99999,
+              } : undefined,
+            },
+            limit: Math.min(limit, 50),
+            page,
+          }),
+          signal: AbortSignal.timeout(5000),
+        });
+
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data && json.data.length > 0) {
+            storeIndexResults = json.data;
+            usedFallback = false;
+          }
+        }
+      } catch {
+        // StoreIndex failed
+      }
     }
 
-    const res = await fetch("https://api.storeindex.io/search", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        filter,
-        limit: Math.min(limit, 50),
+    // Fallback to curated database
+    if (usedFallback) {
+      const fallback = searchStores(country, industry, minProducts, maxProducts, createdYear, createdMonth, createdDay, limit);
+      storeIndexResults = fallback.map((s) => ({
+        domain: s.domain,
+        shopifyDomain: `${s.domain.split(".")[0]}.myshopify.com`,
+        email: s.email,
+        country: s.countryCode,
+        industry: s.industry,
+        products: s.products,
+        score: s.score,
+        createdAt: s.createdAt,
+      }));
+    }
+
+    if (storeIndexResults.length === 0) {
+      return NextResponse.json({
+        stores: [],
+        total: 0,
         page,
-      }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      return NextResponse.json(
-        { error: `StoreIndex error (${res.status}): ${text.substring(0, 200)}`, stores: [] },
-        { status: 200 }
-      );
+        limit,
+        source: usedFallback ? "fallback" : "storeindex",
+        message: "No stores found for these filters. Try broader criteria.",
+      });
     }
 
-    const json = await res.json();
     return NextResponse.json({
-      stores: json.data || [],
-      total: json.total || 0,
-      page: json.page || page,
-      limit: json.limit || limit,
+      stores: storeIndexResults,
+      total: storeIndexResults.length,
+      page,
+      limit,
+      source: usedFallback ? "fallback" : "storeindex",
     });
   } catch (err: any) {
     return NextResponse.json(
-      { error: `StoreIndex error: ${err.message || "Unknown error"}`, stores: [] },
+      {
+        stores: [],
+        total: 0,
+        page: 1,
+        limit: 20,
+        source: "error",
+        message: `Search error: ${err.message || "Unknown error"}`,
+      },
       { status: 200 }
     );
   }
