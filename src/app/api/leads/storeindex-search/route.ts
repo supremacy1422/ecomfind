@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": apiKey,
+        "Authorization": `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         filter,
@@ -34,7 +34,10 @@ export async function POST(req: NextRequest) {
 
     if (!res.ok) {
       const text = await res.text();
-      return NextResponse.json({ error: `StoreIndex error: ${text}` }, { status: res.status });
+      return NextResponse.json(
+        { error: `StoreIndex error (${res.status}): ${text.substring(0, 200)}`, stores: [] },
+        { status: 200 }
+      );
     }
 
     const json = await res.json();
@@ -45,6 +48,9 @@ export async function POST(req: NextRequest) {
       limit: json.limit || limit,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || "Search failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: `StoreIndex error: ${err.message || "Unknown error"}`, stores: [] },
+      { status: 200 }
+    );
   }
 }
