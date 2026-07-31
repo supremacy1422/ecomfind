@@ -4,32 +4,51 @@ import { searchStores } from "@/lib/shopify-stores";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { country, industry, minProducts, maxProducts, createdYear, createdMonth, createdDay, limit = 20, page = 1 } = body;
+    const {
+      country,
+      industry,
+      minProducts,
+      maxProducts,
+      createdYear,
+      createdMonth,
+      createdDay,
+      limit = 20,
+      page = 1,
+    } = body;
 
-    // Try StoreIndex API first
+    const safeLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 50);
+    const safePage = Math.max(parseInt(page) || 1, 1);
+
     const apiKey = process.env.STOREINDEX_API_KEY;
-    let storeIndexResults: any[] = [];
+    let results: any[] = [];
     let usedFallback = true;
 
+    /* ─── Try StoreIndex API first ─── */
     if (apiKey) {
       try {
+        const filters: any = {};
+        if (country) filters.country = country;
+        if (industry) filters.industry = industry;
+        if (minProducts !== undefined || maxProducts !== undefined) {
+          filters.activeProductsRange = {
+            gte: minProducts ?? 0,
+            lte: maxProducts ?? 99999,
+          };
+        }
+        if (createdYear) filters.createdYear = parseInt(createdYear);
+        if (createdMonth) filters.createdMonth = parseInt(createdMonth);
+        if (createdDay) filters.createdDay = parseInt(createdDay);
+
         const res = await fetch("https://api.storeindex.com/v1/search", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`,
+            Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({
-            filters: {
-              country: country || undefined,
-              industry: industry || undefined,
-              activeProductsRange: minProducts || maxProducts ? {
-                gte: minProducts || 0,
-                lte: maxProducts || 99999,
-              } : undefined,
-            },
-            limit: Math.min(limit, 50),
-            page,
+            filters,
+            limit: safeLimit,
+            page: safePage,
           }),
           signal: AbortSignal.timeout(5000),
         });
@@ -37,23 +56,45 @@ export async function POST(req: NextRequest) {
         if (res.ok) {
           const json = await res.json();
           if (json.data && json.data.length > 0) {
-            storeIndexResults = json.data;
+            results = json.data.map((s: any) => ({
+              domain: s.domain || s.shopifyDomain?.replace(".myshopify.com", "") || "unknown.com",
+              shopifyDomain:
+                s.shopifyDomain ||
+                `${(s.domain || "unknown").split(".")[0]}.myshopify.com`,
+              email: s.email || null,
+              country: s.country || s.countryCode || country || null,
+              industry: s.industry || null,
+              products: s.products || s.activeProducts || null,
+              score: s.score || null,
+              createdAt: s.createdAt || s.created_at || s.foundedDate || null,
+            }));
             usedFallback = false;
           }
         }
       } catch {
-        // StoreIndex failed
+        /* StoreIndex failed — will use fallback */
       }
     }
 
-    // Fallback to curated database
+    /* ─── Fallback to curated database ─── */
     if (usedFallback) {
-      const fallback = searchStores(country, industry, minProducts, maxProducts, createdYear, createdMonth, createdDay, limit);
-      storeIndexResults = fallback.map((s) => ({
+      const fallback = searchStores(
+        country,
+        industry,
+        minProducts,
+        maxProducts,
+        createdYear,
+        createdMonth,
+        createdDay,
+        safeLimit
+      );
+
+      results = fallback.map((s) => ({
         domain: s.domain,
-        shopifyDomain: `${s.domain.split(".")[0]}.myshopify.com`,
+        shopifyDomain:
+          s.shopifyDomain || `${s.domain.split(".")[0]}.myshopify.com`,
         email: s.email,
-        country: s.countryCode,
+        country: s.countryCode || s.country,
         industry: s.industry,
         products: s.products,
         score: s.score,
@@ -61,25 +102,27 @@ export async function POST(req: NextRequest) {
       }));
     }
 
-    if (storeIndexResults.length === 0) {
+    if (results.length === 0) {
       return NextResponse.json({
         stores: [],
         total: 0,
-        page,
-        limit,
+        page: safePage,
+        limit: safeLimit,
         source: usedFallback ? "fallback" : "storeindex",
-        message: "No stores found for these filters. Try broader criteria.",
+        message:
+          "No stores found for these filters. Try broader criteria (e.g. Any Country, All Industries).",
       });
     }
 
     return NextResponse.json({
-      stores: storeIndexResults,
-      total: storeIndexResults.length,
-      page,
-      limit,
+      stores: results,
+      total: results.length,
+      page: safePage,
+      limit: safeLimit,
       source: usedFallback ? "fallback" : "storeindex",
     });
   } catch (err: any) {
+    console.error("StoreIndex search error:", err);
     return NextResponse.json(
       {
         stores: [],
