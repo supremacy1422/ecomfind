@@ -1,327 +1,522 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import NavHeader from "@/components/NavHeader";
+import React, { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
 
-// ─── Inline SVG Icons ───
-const Icon = ({ d, className = "w-4 h-4" }: { d: string; className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d={d} /></svg>
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const Icons = {
-  Send: <Icon d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />,
-  Loader2: <Icon d="M21 12a9 9 0 11-6.22-8.56" />,
-  CheckCircle2: <Icon d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zm-2-6l4-4 4 4M9 12l3 3" />,
-  X: <Icon d="M18 6L6 18M6 6l12 12" />,
-  Plus: <Icon d="M12 5v14M5 12h14" />,
-  Trash2: <Icon d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6" />,
-  RefreshCw: <Icon d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />,
-  Mail: <Icon d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z M22 6l-10 7L2 6" />,
-  User: <Icon d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" />,
-  Globe: <Icon d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 0v20m-6.5-8h13" />,
-  AlertTriangle: <Icon d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" />,
+/* ─── Types ─── */
+interface OutreachLog {
+  id: string;
+  recipient: string;
+  domain: string;
+  subject: string;
+  template: string;
+  status: "draft" | "sent" | "opened" | "replied" | "scheduled";
+  sentAt?: string;
+  scheduledFor?: string;
+}
+
+/* ─── Icons ─── */
+const IconZap = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+);
+const IconStore = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+);
+const IconMail = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+);
+const IconSend = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+);
+const IconClock = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+);
+const IconCheck = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+);
+const IconEye = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+);
+const IconReply = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>
+);
+const IconTrash = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+);
+const IconSparkles = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+);
+const IconChevronDown = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+);
+const IconCopy = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+);
+
+/* ─── Templates ─── */
+const TEMPLATES: Record<string, { name: string; subject: string; body: string }> = {
+  audit: {
+    name: "Cold Audit Outreach",
+    subject: "I audited {{domain}} — found ${{amount}} in recoverable revenue",
+    body: `Hi there,
+
+I just ran a forensic revenue audit on {{domain}} and found some significant leaks that are likely costing you sales every month.
+
+Key findings:
+• Mobile load time is 4.2s (industry best: 1.1s)
+• No abandoned cart recovery flow
+• Missing structured data for Google rich snippets
+• Weak meta descriptions reducing CTR by ~22%
+
+The good news: most of these are quick fixes. I put together a short priority list ranked by effort vs. revenue impact.
+
+Worth a 10-minute chat this week?
+
+Best,
+[Your Name]`,
+  },
+  value: {
+    name: "Value-First Tip",
+    subject: "Quick win for {{domain}} (1-hour fix)",
+    body: `Hi,
+
+I was browsing {{domain}} and noticed one small thing that's probably costing you conversions:
+
+Your product pages load in 4+ seconds on mobile. Every 1-second delay drops conversions by ~7%. That's a lot of lost revenue from a fixable problem.
+
+The quickest win: compress your images to WebP and enable lazy loading. Most Shopify stores see a 1-2 second improvement within an hour.
+
+I help Shopify stores fix exactly this kind of thing. If you'd like, I can send over a free 5-minute audit report with the full breakdown.
+
+No pitch — just thought it might help.
+
+Cheers,
+[Your Name]`,
+  },
+  followup: {
+    name: "Follow-Up",
+    subject: "Re: {{domain}} audit — one question",
+    body: `Hi,
+
+I reached out last week about the revenue audit I ran on {{domain}}. Totally understand if it got buried.
+
+Quick question: are you currently tracking cart abandonment rates? Most stores I audit are losing 15-20% of checkouts to fixable friction, and they don't even realize it.
+
+If that's something on your radar, happy to share the audit report — no strings attached.
+
+Either way, keep up the great work with the store.
+
+Best,
+[Your Name]`,
+  },
+  partnership: {
+    name: "Partnership",
+    subject: "Collaboration idea for {{domain}}",
+    body: `Hi,
+
+I've been following {{domain}} for a while — love what you're building.
+
+I run a small CRO studio focused on Shopify brands. We specialize in turning more visitors into buyers through speed optimization, checkout flows, and email recovery.
+
+I think there's a natural fit here. Would you be open to a quick 15-minute call to explore how we might help {{domain}} scale?
+
+I can share some case studies from similar brands in the {{industry}} space.
+
+Talk soon,
+[Your Name]`,
+  },
 };
 
-type OutreachStatus = "new" | "contacted" | "responded" | "closed";
-
-interface OutreachRow {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  storeUrl: string;
-  subject: string;
-  body: string;
-  status: OutreachStatus;
-  sending: boolean;
-  sent: boolean;
-  error?: string;
+/* ─── Status Badge ─── */
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    draft: "bg-slate-800 text-slate-400",
+    scheduled: "bg-amber-500/10 text-amber-400",
+    sent: "bg-emerald-500/10 text-emerald-400",
+    opened: "bg-sky-500/10 text-sky-400",
+    replied: "bg-violet-500/10 text-violet-400",
+  };
+  const icons: Record<string, React.ReactNode> = {
+    draft: <IconMail className="w-3 h-3" />,
+    scheduled: <IconClock className="w-3 h-3" />,
+    sent: <IconCheck className="w-3 h-3" />,
+    opened: <IconEye className="w-3 h-3" />,
+    replied: <IconReply className="w-3 h-3" />,
+  };
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full font-semibold ${map[status] || map.draft}`}>
+      {icons[status]} {status.charAt(0).toUpperCase() + status.slice(1)}
+    </span>
+  );
 }
 
-const templates = [
-  { name: "T1 — Quick Question", subject: "Quick question about your store", body: `Hi {{firstName}},\n\nI came across your store and noticed a few opportunities to boost conversions and organic traffic.\n\nWould you be open to a 5-minute audit overview? No pitch — just insights.\n\nBest,` },
-  { name: "T2 — Three Wins", subject: "3 quick wins I spotted on your store", body: `Hi {{firstName}},\n\nI run growth audits for e-commerce stores and found 3 high-impact fixes that could move the needle this month.\n\nHappy to share the findings — takes 2 mins to read.\n\nCheers,` },
-  { name: "T3 — Revenue Leak", subject: "Is your store leaving revenue on the table?", body: `Hi {{firstName}},\n\nI analyzed your store against 200+ e-commerce benchmarks. There are a few gaps that typically cost stores 15-30% in lost revenue.\n\nI put together a quick summary. Want me to send it over?\n\nBest,` },
-  { name: "T4 — AI Visibility", subject: "Your store's AI visibility score", body: `Hi {{firstName}},\n\nI checked how visible your store is to AI shopping assistants like ChatGPT and Gemini. Most stores in your niche are invisible — and it's costing them thousands.\n\nI have a quick fix list. Interested?\n\nBest,` },
-  { name: "T5 — Competitor Gap", subject: "The gap between you and your competitors", body: `Hi {{firstName}},\n\nI ran a competitive analysis in your niche and found specific areas where top performers are pulling ahead. The good news: every gap is fixable.\n\nWant the breakdown?\n\nBest,` },
-];
-
-function extractNameFromEmail(email: string): { firstName: string; lastName: string } {
-  if (!email || !email.includes("@")) return { firstName: "", lastName: "" };
-  const local = email.split("@")[0];
-  if (local.includes(".")) {
-    const parts = local.split(".").filter(p => p.length > 1 && !/^\d+$/.test(p));
-    if (parts.length >= 2) return { firstName: capitalize(parts[0]), lastName: capitalize(parts[1]) };
-    if (parts.length === 1) return { firstName: capitalize(parts[0]), lastName: "" };
-  }
-  if (local.includes("_")) {
-    const parts = local.split("_").filter(p => p.length > 1 && !/^\d+$/.test(p));
-    if (parts.length >= 2) return { firstName: capitalize(parts[0]), lastName: capitalize(parts[1]) };
-    if (parts.length === 1) return { firstName: capitalize(parts[0]), lastName: "" };
-  }
-  const camelMatch = local.match(/^([a-z]+)([A-Z][a-z]+)$/);
-  if (camelMatch) return { firstName: capitalize(camelMatch[1]), lastName: camelMatch[2] };
-  if (local.includes("-")) {
-    const parts = local.split("-").filter(p => p.length > 1 && !/^\d+$/.test(p));
-    if (parts.length >= 2) return { firstName: capitalize(parts[0]), lastName: capitalize(parts[1]) };
-  }
-  const generic = ["info", "hello", "contact", "support", "admin", "sales", "marketing", "team", "office", "help", "noreply", "no-reply", "founder", "owner", "ceo", "manager"];
-  if (local.length > 2 && !generic.includes(local.toLowerCase())) return { firstName: capitalize(local), lastName: "" };
-  return { firstName: "", lastName: "" };
-}
-
-function capitalize(s: string) {
-  if (!s) return "";
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-}
-
-function fillTemplate(template: string, row: OutreachRow) {
-  return template
-    .replace(/{{firstName}}/g, row.firstName || "there")
-    .replace(/{{lastName}}/g, row.lastName || "")
-    .replace(/{{email}}/g, row.email)
-    .replace(/{{storeUrl}}/g, row.storeUrl || "your store");
-}
-
+/* ─── Main Page ─── */
 export default function OutreachPage() {
-  const [rows, setRows] = useState<OutreachRow[]>([]);
-  const [gmailConnected, setGmailConnected] = useState(false);
-  const [gmailEmail, setGmailEmail] = useState("");
-  const [bulkSending, setBulkSending] = useState(false);
-  const [pasteInput, setPasteInput] = useState("");
-  const [showPaste, setShowPaste] = useState(false);
+  const searchParams = useSearchParams();
+  const paramEmail = searchParams.get("email") || "";
+  const paramDomain = searchParams.get("domain") || "";
 
+  const [recipient, setRecipient] = useState(paramEmail);
+  const [domain, setDomain] = useState(paramDomain);
+  const [templateKey, setTemplateKey] = useState("audit");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [fromName, setFromName] = useState("");
+  const [fromEmail, setFromEmail] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendStatus, setSendStatus] = useState("");
+  const [scheduleMode, setScheduleMode] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [logs, setLogs] = useState<OutreachLog[]>([]);
+  const [user, setUser] = useState<any>(null);
+  const [copied, setCopied] = useState(false);
+
+  /* ─── Load user + logs ─── */
   useEffect(() => {
-    fetch("/api/gmail/status")
-      .then((r) => r.json())
-      .then((d) => { if (d.connected) { setGmailConnected(true); setGmailEmail(d.email); } })
-      .catch(() => {});
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user || null);
+      if (session?.user?.email) setFromEmail(session.user.email);
+    });
+
+    const saved = localStorage.getItem("outreachLogs");
+    if (saved) setLogs(JSON.parse(saved));
   }, []);
 
-  const addRow = (email = "", storeUrl = "") => {
-    const names = extractNameFromEmail(email);
-    const t = templates[0];
-    const newRow: OutreachRow = {
-      id: Math.random().toString(36).slice(2),
-      email, firstName: names.firstName, lastName: names.lastName, storeUrl,
-      subject: t.subject,
-      body: fillTemplate(t.body, { ...names, email, storeUrl, firstName: names.firstName, lastName: names.lastName } as any),
-      status: "new" as OutreachStatus, sending: false, sent: false,
+  /* ─── Apply template ─── */
+  useEffect(() => {
+    const t = TEMPLATES[templateKey];
+    if (!t) return;
+    const vars: Record<string, string> = {
+      domain: domain || "their-store.com",
+      amount: "12K",
+      industry: "Fashion",
     };
-    setRows((prev) => [...prev, newRow]);
-  };
-
-  const removeRow = (id: string) => setRows((prev) => prev.filter((r) => r.id !== id));
-
-  const updateRow = (id: string, patch: Partial<OutreachRow>) => {
-    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-  };
-
-  const applyTemplate = (rowId: string, templateIdx: number) => {
-    const t = templates[templateIdx];
-    setRows((prev) => prev.map((r) => r.id === rowId ? { ...r, subject: t.subject, body: fillTemplate(t.body, r) } : r));
-  };
-
-  const handlePasteEmails = () => {
-    const lines = pasteInput.split(/\n|,/).map((l) => l.trim()).filter((l) => l.length > 0);
-    lines.forEach((line) => {
-      const parts = line.split(/\s+|,/).filter(Boolean);
-      const email = parts.find((p) => p.includes("@")) || "";
-      const url = parts.find((p) => p.includes(".") && !p.includes("@")) || "";
-      if (email) addRow(email, url);
+    let sub = t.subject;
+    let bod = t.body;
+    Object.entries(vars).forEach(([k, v]) => {
+      sub = sub.replace(new RegExp(`{{${k}}}`, "g"), v);
+      bod = bod.replace(new RegExp(`{{${k}}}`, "g"), v);
     });
-    setPasteInput("");
-    setShowPaste(false);
+    setSubject(sub);
+    setBody(bod);
+  }, [templateKey, domain]);
+
+  /* ─── Save logs ─── */
+  const persistLogs = (newLogs: OutreachLog[]) => {
+    setLogs(newLogs);
+    localStorage.setItem("outreachLogs", JSON.stringify(newLogs));
   };
 
-  const sendRow = async (row: OutreachRow) => {
-    if (!row.email) return;
-    updateRow(row.id, { sending: true, error: undefined });
+  /* ─── Send ─── */
+  const handleSend = async () => {
+    if (!recipient || !subject || !body) {
+      setSendStatus("Please fill in recipient, subject, and body.");
+      return;
+    }
+    setSending(true);
+    setSendStatus("");
+
     try {
-      const r = await fetch("/api/gmail/send", {
+      const res = await fetch("/api/outreach/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: row.email, subject: row.subject, body: row.body, storeUrl: row.storeUrl }),
+        body: JSON.stringify({
+          to: recipient,
+          from: fromEmail,
+          subject,
+          body,
+          domain,
+          scheduledFor: scheduleMode ? scheduleDate : null,
+        }),
       });
-      const d = await r.json();
-      if (r.ok) {
-        updateRow(row.id, { sending: false, sent: true, status: "contacted" as OutreachStatus });
-      } else {
-        updateRow(row.id, { sending: false, error: d.error || "Failed" });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to send");
+
+      const newLog: OutreachLog = {
+        id: Math.random().toString(36).substring(2, 10),
+        recipient,
+        domain: domain || "—",
+        subject,
+        template: TEMPLATES[templateKey].name,
+        status: scheduleMode ? "scheduled" : "sent",
+        sentAt: scheduleMode ? undefined : new Date().toISOString(),
+        scheduledFor: scheduleMode ? scheduleDate : undefined,
+      };
+      persistLogs([newLog, ...logs]);
+
+      setSendStatus(scheduleMode ? "✓ Email scheduled" : "✓ Email sent successfully");
+      if (!scheduleMode) {
+        setSubject("");
+        setBody("");
       }
-    } catch {
-      updateRow(row.id, { sending: false, error: "Network error" });
+    } catch (err: any) {
+      setSendStatus(`Error: ${err.message}`);
+    } finally {
+      setSending(false);
+      setTimeout(() => setSendStatus(""), 4000);
     }
   };
 
-  const sendAll = async () => {
-    if (!gmailConnected) return alert("Connect Gmail first");
-    const toSend = rows.filter((r) => !r.sent && r.email);
-    if (toSend.length === 0) return;
-    setBulkSending(true);
-    for (const row of toSend) {
-      await sendRow(row);
-      await new Promise((res) => setTimeout(res, 1500));
-    }
-    setBulkSending(false);
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(body);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
-  const verifyEmails = async () => {
-    const toVerify = rows.filter((r) => r.email);
-    for (const row of toVerify) {
-      try {
-        const r = await fetch("/api/verify-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: row.email }),
-        });
-        const d = await r.json();
-        updateRow(row.id, { status: d.valid ? ("new" as OutreachStatus) : ("closed" as OutreachStatus) });
-      } catch {}
-    }
+  const deleteLog = (id: string) => {
+    persistLogs(logs.filter((l) => l.id !== id));
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <NavHeader />
+    <div className="min-h-screen bg-[#0b0f1f] text-slate-200">
+      {/* Nav */}
+      <header className="border-b border-slate-800/60 bg-[#0b0f1e]/80 backdrop-blur sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <a href="/" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mr-4">
+              <IconStore className="w-5 h-5" />
+              <span className="text-sm font-medium hidden sm:inline">Home</span>
+            </a>
+            <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
+              <IconZap className="w-5 h-5 text-violet-400" />
+            </div>
+            <span className="font-bold text-white tracking-tight">EcomFind</span>
+          </div>
+          <nav className="hidden md:flex items-center gap-1">
+            <a href="/discover" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Audit</a>
+            <a href="/leads" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Leads</a>
+            <a href="/outreach" className="px-3 py-1.5 rounded-lg bg-violet-500/10 text-violet-400 text-sm font-medium border border-violet-500/20">Outreach</a>
+            <a href="/about" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">About</a>
+          </nav>
+        </div>
+      </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        {/* Page title + Gmail status */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-400">{Icons.Send}</div>
-            <h1 className="font-bold text-lg tracking-tight">Bulk<span className="text-emerald-400">Outreach</span></h1>
-          </div>
-          <div className="flex items-center gap-3">
-            {!gmailConnected ? (
-              <a href="/api/gmail/connect" className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-medium transition-colors">Connect Gmail</a>
-            ) : (
-              <span className="text-xs text-emerald-400 flex items-center gap-1">{Icons.CheckCircle2} {gmailEmail}</span>
-            )}
-          </div>
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-white mb-2">Outreach Center</h1>
+          <p className="text-slate-400">AI-generated email templates personalized for every lead.</p>
         </div>
 
-        {/* Controls */}
-        <div className="flex flex-wrap items-center gap-3 mb-6">
-          <button onClick={() => addRow()} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold rounded-lg text-sm transition-all flex items-center gap-1.5">
-            {Icons.Plus} Add Row
-          </button>
-          <button onClick={() => setShowPaste(!showPaste)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm font-medium transition-colors">
-            Paste Emails
-          </button>
-          <button onClick={verifyEmails} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5">
-            {Icons.CheckCircle2} Verify All
-          </button>
-          <button onClick={sendAll} disabled={bulkSending || rows.length === 0}
-            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold rounded-lg text-sm transition-all disabled:opacity-50 flex items-center gap-1.5 ml-auto">
-            {bulkSending ? <span className="animate-spin">{Icons.RefreshCw}</span> : Icons.Send}
-            {bulkSending ? "Sending..." : `Send All (${rows.filter((r) => !r.sent).length})`}
-          </button>
-        </div>
-
-        {/* Paste Area */}
-        {showPaste && (
-          <div className="overflow-hidden mb-6" style={{ animation: "slideDown 0.2s ease" }}>
-            <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
-              <p className="text-xs text-slate-500 mb-2">Paste emails (one per line, optional URL after comma or space)</p>
-              <textarea value={pasteInput} onChange={(e) => setPasteInput(e.target.value)} rows={4}
-                placeholder="john@example.com, https://store.com\nhello@brand.co"
-                className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 resize-none mb-3" />
-              <div className="flex gap-2">
-                <button onClick={handlePasteEmails} className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold rounded-lg text-xs transition-all">Add to List</button>
-                <button onClick={() => setShowPaste(false)} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs font-medium transition-colors">Cancel</button>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {/* ─── Composer ─── */}
+          <div className="xl:col-span-2 space-y-6">
+            <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6">
+              <div className="flex items-center gap-2 mb-6">
+                <IconSparkles className="w-5 h-5 text-violet-400" />
+                <h2 className="text-lg font-bold text-white">Email Composer</h2>
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* Rows */}
-        <div className="space-y-4">
-          {rows.map((row) => (
-            <div key={row.id} className="bg-slate-900/60 border border-slate-800 rounded-xl p-4" style={{ animation: "fadeIn 0.2s ease" }}>
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-3 mb-3">
-                <div className="md:col-span-3">
-                  <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
-                    <span className="w-3 h-3">{Icons.Mail}</span> Email
-                  </label>
-                  <input value={row.email} onChange={(e) => {
-                    const email = e.target.value;
-                    const names = extractNameFromEmail(email);
-                    updateRow(row.id, { email, firstName: names.firstName, lastName: names.lastName, body: fillTemplate(row.body, { ...row, email, firstName: names.firstName, lastName: names.lastName }) });
-                  }} placeholder="founder@store.com"
-                    className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500/50" />
+              {/* Template Selector */}
+              <div className="mb-6">
+                <label className="text-xs text-slate-500 uppercase tracking-wider mb-2 block">AI Template</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {Object.entries(TEMPLATES).map(([key, t]) => (
+                    <button
+                      key={key}
+                      onClick={() => setTemplateKey(key)}
+                      className={`px-3 py-2 rounded-lg text-xs font-medium border transition-colors text-left ${
+                        templateKey === key
+                          ? "bg-violet-500/10 text-violet-400 border-violet-500/30"
+                          : "bg-slate-950/50 text-slate-400 border-slate-800 hover:border-slate-700"
+                      }`}
+                    >
+                      {t.name}
+                    </button>
+                  ))}
                 </div>
-                <div className="md:col-span-2">
-                  <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
-                    <span className="w-3 h-3">{Icons.User}</span> First Name
-                  </label>
-                  <input value={row.firstName} onChange={(e) => {
-                    const firstName = e.target.value;
-                    updateRow(row.id, { firstName, body: fillTemplate(row.body, { ...row, firstName }) });
-                  }} placeholder="John"
-                    className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500/50" />
+              </div>
+
+              {/* From / To */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className="text-xs text-slate-500 uppercase tracking-wider mb-1 block">From Name</label>
+                  <input
+                    value={fromName}
+                    onChange={(e) => setFromName(e.target.value)}
+                    placeholder="Your Name"
+                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                  />
                 </div>
-                <div className="md:col-span-2">
-                  <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
-                    <span className="w-3 h-3">{Icons.User}</span> Last Name
-                  </label>
-                  <input value={row.lastName} onChange={(e) => {
-                    const lastName = e.target.value;
-                    updateRow(row.id, { lastName, body: fillTemplate(row.body, { ...row, lastName }) });
-                  }} placeholder="Doe"
-                    className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500/50" />
+                <div>
+                  <label className="text-xs text-slate-500 uppercase tracking-wider mb-1 block">From Email</label>
+                  <input
+                    value={fromEmail}
+                    onChange={(e) => setFromEmail(e.target.value)}
+                    placeholder="you@company.com"
+                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                  />
                 </div>
-                <div className="md:col-span-3">
-                  <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1">
-                    <span className="w-3 h-3">{Icons.Globe}</span> Store URL <span className="text-slate-600">(optional)</span>
-                  </label>
-                  <input value={row.storeUrl} onChange={(e) => updateRow(row.id, { storeUrl: e.target.value })} placeholder="https://store.com"
-                    className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-emerald-500/50" />
-                </div>
-                <div className="md:col-span-2 flex items-end gap-2">
-                  <button onClick={() => sendRow(row)} disabled={row.sending || !row.email || row.sent}
-                    className="flex-1 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-400 disabled:bg-slate-800 disabled:text-slate-500 text-slate-950 font-semibold rounded-lg text-xs transition-all flex items-center justify-center gap-1">
-                    {row.sending ? <span className="animate-spin">{Icons.RefreshCw}</span> : row.sent ? <span className="w-3 h-3">{Icons.CheckCircle2}</span> : <span className="w-3 h-3">{Icons.Send}</span>}
-                    {row.sending ? "..." : row.sent ? "Sent" : "Send"}
+              </div>
+
+              <div className="mb-4">
+                <label className="text-xs text-slate-500 uppercase tracking-wider mb-1 block">To (Recipient)</label>
+                <input
+                  value={recipient}
+                  onChange={(e) => setRecipient(e.target.value)}
+                  placeholder="owner@store.com"
+                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="text-xs text-slate-500 uppercase tracking-wider mb-1 block">Store Domain</label>
+                <input
+                  value={domain}
+                  onChange={(e) => setDomain(e.target.value)}
+                  placeholder="store.com"
+                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                />
+              </div>
+
+              <div className="mb-4">
+                <label className="text-xs text-slate-500 uppercase tracking-wider mb-1 block">Subject</label>
+                <input
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                />
+              </div>
+
+              <div className="mb-4">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs text-slate-500 uppercase tracking-wider">Body</label>
+                  <button onClick={copyToClipboard} className="text-[10px] text-slate-500 hover:text-violet-400 flex items-center gap-1 transition-colors">
+                    {copied ? <IconCheck className="w-3 h-3" /> : <IconCopy className="w-3 h-3" />}
+                    {copied ? "Copied" : "Copy"}
                   </button>
-                  <button onClick={() => removeRow(row.id)} className="px-2 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 rounded-lg transition-colors">
-                    <span className="w-3 h-3">{Icons.Trash2}</span>
-                  </button>
                 </div>
+                <textarea
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  rows={12}
+                  className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40 resize-none font-mono leading-relaxed"
+                />
+                <p className="text-[10px] text-slate-600 mt-1">Tip: Personalize the bracketed sections before sending.</p>
               </div>
 
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {templates.map((t, i) => (
-                  <button key={i} onClick={() => applyTemplate(row.id, i)} className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded text-[10px] font-medium transition-colors">{t.name}</button>
-                ))}
+              {/* Schedule Toggle */}
+              <div className="flex items-center gap-3 mb-4">
+                <button
+                  onClick={() => setScheduleMode(!scheduleMode)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                    scheduleMode ? "bg-amber-500/10 text-amber-400 border-amber-500/30" : "bg-slate-800 text-slate-400 border-slate-700"
+                  }`}
+                >
+                  <IconClock className="w-3.5 h-3.5" />
+                  {scheduleMode ? "Scheduling On" : "Schedule Send"}
+                </button>
+                {scheduleMode && (
+                  <input
+                    type="datetime-local"
+                    value={scheduleDate}
+                    onChange={(e) => setScheduleDate(e.target.value)}
+                    className="px-3 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white"
+                  />
+                )}
               </div>
 
-              <input value={row.subject} onChange={(e) => updateRow(row.id, { subject: e.target.value })}
-                className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 mb-2" />
-              <textarea value={row.body} onChange={(e) => updateRow(row.id, { body: e.target.value })} rows={3}
-                className="w-full px-2.5 py-1.5 bg-slate-950 border border-slate-700 rounded-lg text-xs text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 resize-none" />
+              {/* Actions */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={handleSend}
+                  disabled={sending}
+                  className="flex-1 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-semibold rounded-lg text-sm flex items-center justify-center gap-2"
+                >
+                  {sending ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <IconSend className="w-4 h-4" />
+                  )}
+                  {scheduleMode ? "Schedule Email" : "Send Now"}
+                </button>
+              </div>
 
-              {row.error && (
-                <p className="text-rose-400 text-xs mt-2 flex items-center gap-1">
-                  <span className="w-3 h-3">{Icons.AlertTriangle}</span> {row.error}
+              {sendStatus && (
+                <p className={`mt-3 text-sm ${sendStatus.includes("✓") ? "text-emerald-400" : "text-rose-400"}`}>
+                  {sendStatus}
                 </p>
               )}
             </div>
-          ))}
-        </div>
 
-        {rows.length === 0 && (
-          <div className="text-center py-16 text-slate-600">
-            <div className="w-10 h-10 mx-auto mb-3 opacity-30">{Icons.Send}</div>
-            <p className="text-sm">No outreach rows yet. Add one or paste emails above.</p>
+            {/* Tips */}
+            <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6">
+              <h3 className="text-sm font-bold text-white mb-3">Outreach Tips</h3>
+              <ul className="space-y-2 text-xs text-slate-400">
+                <li className="flex items-start gap-2"><span className="text-emerald-400 mt-0.5">•</span> Personalize the first line with something specific about their store.</li>
+                <li className="flex items-start gap-2"><span className="text-emerald-400 mt-0.5">•</span> Keep subject lines under 50 characters for better open rates.</li>
+                <li className="flex items-start gap-2"><span className="text-emerald-400 mt-0.5">•</span> Follow up 3-4 days after the first email if no reply.</li>
+                <li className="flex items-start gap-2"><span className="text-emerald-400 mt-0.5">•</span> Send between 8-10 AM in the recipient's timezone.</li>
+              </ul>
+            </div>
           </div>
-        )}
-      </main>
 
-      <style jsx global>{`
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes slideDown { from { opacity: 0; max-height: 0; } to { opacity: 1; max-height: 500px; } }
-      `}</style>
+          {/* ─── Sidebar ─── */}
+          <div className="space-y-6">
+            {/* Stats */}
+            <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5">
+              <h3 className="text-xs text-slate-500 uppercase tracking-wider mb-3">This Month</h3>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-800 text-center">
+                  <div className="text-xl font-bold text-white">{logs.length}</div>
+                  <div className="text-[10px] text-slate-500 mt-1">Total Sent</div>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-800 text-center">
+                  <div className="text-xl font-bold text-emerald-400">{logs.filter((l) => l.status === "sent" || l.status === "opened" || l.status === "replied").length}</div>
+                  <div className="text-[10px] text-slate-500 mt-1">Delivered</div>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-800 text-center">
+                  <div className="text-xl font-bold text-sky-400">{logs.filter((l) => l.status === "opened").length}</div>
+                  <div className="text-[10px] text-slate-500 mt-1">Opened</div>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-950/50 border border-slate-800 text-center">
+                  <div className="text-xl font-bold text-violet-400">{logs.filter((l) => l.status === "replied").length}</div>
+                  <div className="text-[10px] text-slate-500 mt-1">Replied</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Activity */}
+            <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5">
+              <h3 className="text-xs text-slate-500 uppercase tracking-wider mb-3">Recent Activity</h3>
+              {logs.length === 0 ? (
+                <div className="text-center py-6 text-slate-600">
+                  <IconMail className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                  <p className="text-xs">No outreach yet.</p>
+                  <p className="text-[10px] mt-1">Send your first email from the composer.</p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {logs.map((log) => (
+                    <div key={log.id} className="p-3 rounded-xl bg-slate-950/50 border border-slate-800">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-white font-medium truncate max-w-[140px]">{log.recipient}</span>
+                        <StatusBadge status={log.status} />
+                      </div>
+                      <p className="text-[10px] text-slate-500 truncate mb-1">{log.subject}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-slate-600">
+                          {log.sentAt ? new Date(log.sentAt).toLocaleDateString() : log.scheduledFor ? `Scheduled ${new Date(log.scheduledFor).toLocaleDateString()}` : "Draft"}
+                        </span>
+                        <button onClick={() => deleteLog(log.id)} className="text-slate-600 hover:text-rose-400 transition-colors">
+                          <IconTrash className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
