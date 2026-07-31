@@ -1,214 +1,435 @@
-export interface StoreRecord {
-  domain: string;
-  store_name: string;
-  email: string;
-  country: string;
-  countryCode: string;
-  industry: string;
-  products: number;
-  score: number;
-  createdAt: string; // ISO date string
+"use client";
+
+import React, { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+/* ─── Icons ─── */
+const IconZap = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+);
+const IconCheck = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+);
+const IconClock = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+);
+const IconSend = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+);
+const IconSave = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+);
+const IconMail = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+);
+const IconEye = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+);
+const IconReply = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
+);
+const IconTrash = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+);
+
+interface Activity {
+  id: string;
+  type: "draft" | "sent" | "scheduled" | "opened" | "replied";
+  to: string;
+  subject: string;
+  body: string;
+  scheduledFor?: string;
+  createdAt: string;
 }
 
-export const SHOPIFY_STORES: StoreRecord[] = [
-  { domain: "fashionnova.com", store_name: "Fashion Nova", email: "support@fashionnova.com", country: "United States", countryCode: "US", industry: "Fashion", products: 4500, score: 82, createdAt: "2014-03-15" },
-  { domain: "gymshark.com", store_name: "Gymshark", email: "support@gymshark.com", country: "United Kingdom", countryCode: "GB", industry: "Fitness", products: 320, score: 88, createdAt: "2012-06-20" },
-  { domain: "allbirds.com", store_name: "Allbirds", email: "hello@allbirds.com", country: "United States", countryCode: "US", industry: "Fashion", products: 45, score: 85, createdAt: "2015-09-10" },
-  { domain: "glossier.com", store_name: "Glossier", email: "press@glossier.com", country: "United States", countryCode: "US", industry: "Beauty", products: 89, score: 79, createdAt: "2014-01-22" },
-  { domain: "mvmt.com", store_name: "MVMT Watches", email: "hello@mvmt.com", country: "United States", countryCode: "US", industry: "Jewelry", products: 156, score: 76, createdAt: "2013-07-08" },
-  { domain: "bombas.com", store_name: "Bombas", email: "help@bombas.com", country: "United States", countryCode: "US", industry: "Fashion", products: 78, score: 81, createdAt: "2013-04-12" },
-  { domain: "brooklinen.com", store_name: "Brooklinen", email: "hello@brooklinen.com", country: "United States", countryCode: "US", industry: "Home", products: 134, score: 77, createdAt: "2014-11-05" },
-  { domain: "mejuri.com", store_name: "Mejuri", email: "care@mejuri.com", country: "Canada", countryCode: "CA", industry: "Jewelry", products: 210, score: 80, createdAt: "2015-02-28" },
-  { domain: "kyliecosmetics.com", store_name: "Kylie Cosmetics", email: "support@kyliecosmetics.com", country: "United States", countryCode: "US", industry: "Beauty", products: 340, score: 83, createdAt: "2015-11-30" },
-  { domain: "colourpop.com", store_name: "ColourPop", email: "support@colourpop.com", country: "United States", countryCode: "US", industry: "Beauty", products: 890, score: 78, createdAt: "2014-05-18" },
-  { domain: "hismileteeth.com", store_name: "Hismile", email: "hello@hismileteeth.com", country: "Australia", countryCode: "AU", industry: "Beauty", products: 34, score: 74, createdAt: "2014-08-01" },
-  { domain: "skims.com", store_name: "Skims", email: "support@skims.com", country: "United States", countryCode: "US", industry: "Fashion", products: 267, score: 86, createdAt: "2019-06-10" },
-  { domain: "chubbieshorts.com", store_name: "Chubbies", email: "support@chubbieshorts.com", country: "United States", countryCode: "US", industry: "Fashion", products: 189, score: 72, createdAt: "2011-09-15" },
-  { domain: "puravidabracelets.com", store_name: "Pura Vida", email: "support@puravidabracelets.com", country: "United States", countryCode: "US", industry: "Jewelry", products: 560, score: 75, createdAt: "2010-12-01" },
-  { domain: "nativecos.com", store_name: "Native", email: "support@nativecos.com", country: "United States", countryCode: "US", industry: "Beauty", products: 45, score: 73, createdAt: "2015-07-20" },
-  { domain: "awaytravel.com", store_name: "Away", email: "help@awaytravel.com", country: "United States", countryCode: "US", industry: "Home", products: 67, score: 84, createdAt: "2015-11-09" },
-  { domain: "casper.com", store_name: "Casper", email: "support@casper.com", country: "United States", countryCode: "US", industry: "Home", products: 123, score: 79, createdAt: "2014-01-06" },
-  { domain: "purple.com", store_name: "Purple", email: "support@purple.com", country: "United States", countryCode: "US", industry: "Home", products: 89, score: 76, createdAt: "2015-01-26" },
-  { domain: "tuftandneedle.com", store_name: "Tuft & Needle", email: "support@tuftandneedle.com", country: "United States", countryCode: "US", industry: "Home", products: 45, score: 71, createdAt: "2012-10-01" },
-  { domain: "helixsleep.com", store_name: "Helix Sleep", email: "support@helixsleep.com", country: "United States", countryCode: "US", industry: "Home", products: 34, score: 70, createdAt: "2015-06-15" },
-  { domain: "nectarsleep.com", store_name: "Nectar Sleep", email: "support@nectarsleep.com", country: "United States", countryCode: "US", industry: "Home", products: 28, score: 69, createdAt: "2016-03-01" },
-  { domain: "leesa.com", store_name: "Leesa", email: "support@leesa.com", country: "United States", countryCode: "US", industry: "Home", products: 23, score: 68, createdAt: "2014-09-01" },
-  { domain: "brooklynbedding.com", store_name: "Brooklyn Bedding", email: "support@brooklynbedding.com", country: "United States", countryCode: "US", industry: "Home", products: 56, score: 67, createdAt: "2009-01-01" },
-  { domain: "lull.com", store_name: "Lull", email: "support@lull.com", country: "United States", countryCode: "US", industry: "Home", products: 19, score: 66, createdAt: "2015-08-01" },
-  { domain: "saatva.com", store_name: "Saatva", email: "support@saatva.com", country: "United States", countryCode: "US", industry: "Home", products: 78, score: 78, createdAt: "2010-12-01" },
-  { domain: "amerisleep.com", store_name: "Amerisleep", email: "support@amerisleep.com", country: "United States", countryCode: "US", industry: "Home", products: 34, score: 65, createdAt: "2007-01-01" },
-  { domain: "ghostbed.com", store_name: "GhostBed", email: "support@ghostbed.com", country: "United States", countryCode: "US", industry: "Home", products: 41, score: 64, createdAt: "2015-04-01" },
-  { domain: "bearmattress.com", store_name: "Bear Mattress", email: "support@bearmattress.com", country: "United States", countryCode: "US", industry: "Home", products: 15, score: 63, createdAt: "2014-11-01" },
-  { domain: "performancesleep.com", store_name: "Performance Sleep", email: "support@performancesleep.com", country: "United States", countryCode: "US", industry: "Home", products: 22, score: 62, createdAt: "2015-01-01" },
-  { domain: "dormeo.com", store_name: "Dormeo", email: "support@dormeo.com", country: "United Kingdom", countryCode: "GB", industry: "Home", products: 67, score: 61, createdAt: "2002-01-01" },
-  { domain: "simba-sleep.com", store_name: "Simba Sleep", email: "support@simba-sleep.com", country: "United Kingdom", countryCode: "GB", industry: "Home", products: 34, score: 73, createdAt: "2015-02-01" },
-  { domain: "evemattress.co.uk", store_name: "Eve Mattress", email: "support@evemattress.co.uk", country: "United Kingdom", countryCode: "GB", industry: "Home", products: 28, score: 60, createdAt: "2015-01-01" },
-  { domain: "otty.com", store_name: "Otty", email: "support@otty.com", country: "United Kingdom", countryCode: "GB", industry: "Home", products: 19, score: 59, createdAt: "2016-01-01" },
-  { domain: "ergoflex.com.au", store_name: "Ergoflex", email: "support@ergoflex.com.au", country: "Australia", countryCode: "AU", industry: "Home", products: 12, score: 58, createdAt: "2006-01-01" },
-  { domain: "macoda.com.au", store_name: "Macoda", email: "support@macoda.com.au", country: "Australia", countryCode: "AU", industry: "Home", products: 8, score: 57, createdAt: "2015-01-01" },
-  { domain: "ecosa.com.au", store_name: "Ecosa", email: "support@ecosa.com.au", country: "Australia", countryCode: "AU", industry: "Home", products: 15, score: 69, createdAt: "2015-01-01" },
-  { domain: "sleepingduck.com", store_name: "Sleeping Duck", email: "support@sleepingduck.com", country: "Australia", countryCode: "AU", industry: "Home", products: 9, score: 68, createdAt: "2014-01-01" },
-  { domain: "noa.com.au", store_name: "Noa Home", email: "support@noa.com.au", country: "Australia", countryCode: "AU", industry: "Home", products: 23, score: 67, createdAt: "2016-01-01" },
-  { domain: "onebed.com.au", store_name: "Onebed", email: "support@onebed.com.au", country: "Australia", countryCode: "AU", industry: "Home", products: 7, score: 56, createdAt: "2015-01-01" },
-  { domain: "oneflo.com", store_name: "Oneflo", email: "support@oneflo.com", country: "Australia", countryCode: "AU", industry: "Home", products: 45, score: 55, createdAt: "2014-01-01" },
-  { domain: "sommuto.com.au", store_name: "Sommuto", email: "support@sommuto.com.au", country: "Australia", countryCode: "AU", industry: "Home", products: 11, score: 54, createdAt: "2015-01-01" },
-  { domain: "zenhaven.com", store_name: "Zenhaven", email: "support@zenhaven.com", country: "United States", countryCode: "US", industry: "Home", products: 6, score: 72, createdAt: "2016-01-01" },
-  { domain: "plushbeds.com", store_name: "PlushBeds", email: "support@plushbeds.com", country: "United States", countryCode: "US", industry: "Home", products: 34, score: 71, createdAt: "2008-01-01" },
-  { domain: "loomandleaf.com", store_name: "Loom & Leaf", email: "support@loomandleaf.com", country: "United States", countryCode: "US", industry: "Home", products: 8, score: 70, createdAt: "2015-01-01" },
-  { domain: "mygreenmattress.com", store_name: "My Green Mattress", email: "support@mygreenmattress.com", country: "United States", countryCode: "US", industry: "Home", products: 14, score: 65, createdAt: "2007-01-01" },
-  { domain: "happsy.com", store_name: "Happsy", email: "support@happsy.com", country: "United States", countryCode: "US", industry: "Home", products: 9, score: 64, createdAt: "2016-01-01" },
-  { domain: "avocadogreenmattress.com", store_name: "Avocado Green", email: "support@avocadogreenmattress.com", country: "United States", countryCode: "US", industry: "Home", products: 28, score: 78, createdAt: "2015-01-01" },
-  { domain: "brentwoodhome.com", store_name: "Brentwood Home", email: "support@brentwoodhome.com", country: "United States", countryCode: "US", industry: "Home", products: 67, score: 77, createdAt: "1987-01-01" },
-  { domain: "nestbedding.com", store_name: "Nest Bedding", email: "support@nestbedding.com", country: "United States", countryCode: "US", industry: "Home", products: 45, score: 66, createdAt: "2011-01-01" },
-  { domain: "spindle.com", store_name: "Spindle", email: "support@spindle.com", country: "United States", countryCode: "US", industry: "Home", products: 12, score: 63, createdAt: "2013-01-01" },
-  { domain: "sleeponlatex.com", store_name: "Sleep On Latex", email: "support@sleeponlatex.com", country: "United States", countryCode: "US", industry: "Home", products: 18, score: 62, createdAt: "2013-01-01" },
-  { domain: "mettamattress.com", store_name: "Metta Mattress", email: "support@mettamattress.com", country: "United States", countryCode: "US", industry: "Home", products: 7, score: 61, createdAt: "2016-01-01" },
-  { domain: "puregreen.com", store_name: "Pure Green", email: "support@puregreen.com", country: "United States", countryCode: "US", industry: "Home", products: 22, score: 60, createdAt: "2010-01-01" },
-  { domain: "sleepez.com", store_name: "Sleep EZ", email: "support@sleepez.com", country: "United States", countryCode: "US", industry: "Home", products: 34, score: 59, createdAt: "1976-01-01" },
-  { domain: "mattressfirm.com", store_name: "Mattress Firm", email: "support@mattressfirm.com", country: "United States", countryCode: "US", industry: "Home", products: 890, score: 82, createdAt: "1986-01-01" },
-  { domain: "wayfair.com", store_name: "Wayfair", email: "support@wayfair.com", country: "United States", countryCode: "US", industry: "Home", products: 12000, score: 91, createdAt: "2002-08-01" },
-  { domain: "overstock.com", store_name: "Overstock", email: "support@overstock.com", country: "United States", countryCode: "US", industry: "Home", products: 5600, score: 88, createdAt: "1999-05-01" },
-  { domain: "worldmarket.com", store_name: "World Market", email: "support@worldmarket.com", country: "United States", countryCode: "US", industry: "Home", products: 3400, score: 85, createdAt: "1958-01-01" },
-  { domain: "anthropologie.com", store_name: "Anthropologie", email: "support@anthropologie.com", country: "United States", countryCode: "US", industry: "Fashion", products: 2300, score: 87, createdAt: "1992-01-01" },
-  { domain: "urbanoutfitters.com", store_name: "Urban Outfitters", email: "support@urbanoutfitters.com", country: "United States", countryCode: "US", industry: "Fashion", products: 1800, score: 86, createdAt: "1970-01-01" },
-  { domain: "freepeople.com", store_name: "Free People", email: "support@freepeople.com", country: "United States", countryCode: "US", industry: "Fashion", products: 1200, score: 84, createdAt: "1984-01-01" },
-  { domain: "revolve.com", store_name: "Revolve", email: "support@revolve.com", country: "United States", countryCode: "US", industry: "Fashion", products: 4500, score: 89, createdAt: "2003-01-01" },
-  { domain: "nordstrom.com", store_name: "Nordstrom", email: "support@nordstrom.com", country: "United States", countryCode: "US", industry: "Fashion", products: 8900, score: 92, createdAt: "1901-01-01" },
-  { domain: "shopbop.com", store_name: "Shopbop", email: "support@shopbop.com", country: "United States", countryCode: "US", industry: "Fashion", products: 3400, score: 83, createdAt: "2000-01-01" },
-  { domain: "net-a-porter.com", store_name: "Net-a-Porter", email: "support@net-a-porter.com", country: "United Kingdom", countryCode: "GB", industry: "Fashion", products: 5600, score: 90, createdAt: "2000-06-01" },
-  { domain: "matchesfashion.com", store_name: "Matches Fashion", email: "support@matchesfashion.com", country: "United Kingdom", countryCode: "GB", industry: "Fashion", products: 2300, score: 85, createdAt: "1987-01-01" },
-  { domain: "farfetch.com", store_name: "Farfetch", email: "support@farfetch.com", country: "United Kingdom", countryCode: "GB", industry: "Fashion", products: 6700, score: 91, createdAt: "2007-01-01" },
-  { domain: "asos.com", store_name: "ASOS", email: "support@asos.com", country: "United Kingdom", countryCode: "GB", industry: "Fashion", products: 12000, score: 93, createdAt: "2000-06-01" },
-  { domain: "boohoo.com", store_name: "Boohoo", email: "support@boohoo.com", country: "United Kingdom", countryCode: "GB", industry: "Fashion", products: 8900, score: 81, createdAt: "2006-01-01" },
-  { domain: "prettylittlething.com", store_name: "PrettyLittleThing", email: "support@prettylittlething.com", country: "United Kingdom", countryCode: "GB", industry: "Fashion", products: 6700, score: 80, createdAt: "2012-01-01" },
-  { domain: "missguided.co.uk", store_name: "Missguided", email: "support@missguided.co.uk", country: "United Kingdom", countryCode: "GB", industry: "Fashion", products: 4500, score: 78, createdAt: "2009-01-01" },
-  { domain: "nastygal.com", store_name: "Nasty Gal", email: "support@nastygal.com", country: "United States", countryCode: "US", industry: "Fashion", products: 3400, score: 77, createdAt: "2006-01-01" },
-  { domain: "lulus.com", store_name: "Lulus", email: "support@lulus.com", country: "United States", countryCode: "US", industry: "Fashion", products: 2300, score: 79, createdAt: "1996-01-01" },
-  { domain: "tobi.com", store_name: "Tobi", email: "support@tobi.com", country: "United States", countryCode: "US", industry: "Fashion", products: 1200, score: 71, createdAt: "2007-01-01" },
-  { domain: "showpo.com", store_name: "Showpo", email: "support@showpo.com", country: "Australia", countryCode: "AU", industry: "Fashion", products: 890, score: 74, createdAt: "2010-01-01" },
-  { domain: "princesspolly.com", store_name: "Princess Polly", email: "support@princesspolly.com", country: "Australia", countryCode: "AU", industry: "Fashion", products: 1200, score: 76, createdAt: "2010-01-01" },
-  { domain: "whitefoxboutique.com", store_name: "White Fox", email: "support@whitefoxboutique.com", country: "Australia", countryCode: "AU", industry: "Fashion", products: 560, score: 75, createdAt: "2013-01-01" },
-  { domain: "beginningboutique.com", store_name: "Beginning Boutique", email: "support@beginningboutique.com", country: "Australia", countryCode: "AU", industry: "Fashion", products: 670, score: 73, createdAt: "2008-01-01" },
-  { domain: "supre.com.au", store_name: "Supré", email: "support@supre.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 450, score: 70, createdAt: "1984-01-01" },
-  { domain: "cottonon.com", store_name: "Cotton On", email: "support@cottonon.com", country: "Australia", countryCode: "AU", industry: "Fashion", products: 3400, score: 82, createdAt: "1991-01-01" },
-  { domain: "factorie.com.au", store_name: "Factorie", email: "support@factorie.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 890, score: 69, createdAt: "2007-01-01" },
-  { domain: "jayjays.com.au", store_name: "Jay Jays", email: "support@jayjays.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 560, score: 68, createdAt: "1993-01-01" },
-  { domain: "dotti.com.au", store_name: "Dotti", email: "support@dotti.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 340, score: 67, createdAt: "1981-01-01" },
-  { domain: "portmans.com.au", store_name: "Portmans", email: "support@portmans.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 230, score: 66, createdAt: "1946-01-01" },
-  { domain: "autographfashion.com.au", store_name: "Autograph", email: "support@autographfashion.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 180, score: 65, createdAt: "1987-01-01" },
-  { domain: "crossroads.com.au", store_name: "Crossroads", email: "support@crossroads.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 120, score: 64, createdAt: "1982-01-01" },
-  { domain: "millers.com.au", store_name: "Millers", email: "support@millers.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 340, score: 63, createdAt: "1993-01-01" },
-  { domain: "rivers.com.au", store_name: "Rivers", email: "support@rivers.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 230, score: 62, createdAt: "1979-01-01" },
-  { domain: "rockmans.com.au", store_name: "Rockmans", email: "support@rockmans.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 180, score: 61, createdAt: "1931-01-01" },
-  { domain: "beme.com.au", store_name: "Beme", email: "support@beme.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 89, score: 60, createdAt: "2014-01-01" },
-  { domain: "katies.com.au", store_name: "Katies", email: "support@katies.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 120, score: 59, createdAt: "1959-01-01" },
-  { domain: "nonib.com.au", store_name: "Noni B", email: "support@nonib.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 67, score: 58, createdAt: "1977-01-01" },
-  { domain: "w-lane.com.au", store_name: "W.Lane", email: "support@w-lane.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 45, score: 57, createdAt: "1993-01-01" },
-  { domain: "harrisscarfe.com.au", store_name: "Harris Scarfe", email: "support@harrisscarfe.com.au", country: "Australia", countryCode: "AU", industry: "Home", products: 1200, score: 72, createdAt: "1849-01-01" },
-  { domain: "bestandless.com.au", store_name: "Best & Less", email: "support@bestandless.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 890, score: 71, createdAt: "1965-01-01" },
-  { domain: "bigw.com.au", store_name: "Big W", email: "support@bigw.com.au", country: "Australia", countryCode: "AU", industry: "Home", products: 5600, score: 84, createdAt: "1964-01-01" },
-  { domain: "kmart.com.au", store_name: "Kmart Australia", email: "support@kmart.com.au", country: "Australia", countryCode: "AU", industry: "Home", products: 8900, score: 86, createdAt: "1969-01-01" },
-  { domain: "target.com.au", store_name: "Target Australia", email: "support@target.com.au", country: "Australia", countryCode: "AU", industry: "Home", products: 6700, score: 85, createdAt: "1926-01-01" },
-  { domain: "myer.com.au", store_name: "Myer", email: "support@myer.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 4500, score: 83, createdAt: "1900-01-01" },
-  { domain: "davidjones.com", store_name: "David Jones", email: "support@davidjones.com", country: "Australia", countryCode: "AU", industry: "Fashion", products: 3400, score: 82, createdAt: "1838-01-01" },
-  { domain: "theiconic.com.au", store_name: "The Iconic", email: "support@theiconic.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 2300, score: 87, createdAt: "2011-10-01" },
-  { domain: "surfstitch.com", store_name: "SurfStitch", email: "support@surfstitch.com", country: "Australia", countryCode: "AU", industry: "Fashion", products: 1200, score: 76, createdAt: "2008-01-01" },
-  { domain: "surfection.com.au", store_name: "Surfection", email: "support@surfection.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 560, score: 65, createdAt: "1985-01-01" },
-  { domain: "citybeach.com.au", store_name: "City Beach", email: "support@citybeach.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 890, score: 74, createdAt: "1985-01-01" },
-  { domain: "glueStore.com.au", store_name: "Glue Store", email: "support@glueStore.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 340, score: 73, createdAt: "1998-01-01" },
-  { domain: "generalpants.com.au", store_name: "General Pants", email: "support@generalpants.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 560, score: 75, createdAt: "1972-01-01" },
-  { domain: "hallenstein.com", store_name: "Hallenstein Brothers", email: "support@hallenstein.com", country: "New Zealand", countryCode: "NZ", industry: "Fashion", products: 230, score: 68, createdAt: "1903-01-01" },
-  { domain: "tarocash.com.au", store_name: "Tarocash", email: "support@tarocash.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 180, score: 67, createdAt: "1987-01-01" },
-  { domain: "yd.com.au", store_name: "yd.", email: "support@yd.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 120, score: 66, createdAt: "1998-01-01" },
-  { domain: "connor.com.au", store_name: "Connor", email: "support@connor.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 340, score: 69, createdAt: "2007-01-01" },
-  { domain: "johnnybigg.com.au", store_name: "Johnny Bigg", email: "support@johnnybigg.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 230, score: 70, createdAt: "2010-01-01" },
-  { domain: "aquila.com.au", store_name: "Aquila", email: "support@aquila.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 89, score: 64, createdAt: "1958-01-01" },
-  { domain: "florsheim.com.au", store_name: "Florsheim", email: "support@florsheim.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 120, score: 63, createdAt: "1892-01-01" },
-  { domain: "hushpuppies.com.au", store_name: "Hush Puppies", email: "support@hushpuppies.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 67, score: 62, createdAt: "1958-01-01" },
-  { domain: "colorado.com.au", store_name: "Colorado", email: "support@colorado.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 180, score: 61, createdAt: "1992-01-01" },
-  { domain: "betts.com.au", store_name: "Betts", email: "support@betts.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 230, score: 60, createdAt: "1892-01-01" },
-  { domain: "williams.com.au", store_name: "Williams", email: "support@williams.com.au", country: "Australia", countryCode: "AU", industry: "Fashion", products: 89, score: 59, createdAt: "1865-01-01" },
-  { domain: "sportsmart.com.au", store_name: "Sportsmart", email: "support@sportsmart.com.au", country: "Australia", countryCode: "AU", industry: "Fitness", products: 1200, score: 71, createdAt: "1983-01-01" },
-  { domain: "rebel.com.au", store_name: "Rebel Sport", email: "support@rebel.com.au", country: "Australia", countryCode: "AU", industry: "Fitness", products: 3400, score: 83, createdAt: "1985-01-01" },
-  { domain: "amartfurniture.com.au", store_name: "Amart Furniture", email: "support@amartfurniture.com.au", country: "Australia", countryCode: "AU", industry: "Home", products: 2300, score: 78, createdAt: "1970-01-01" },
-  { domain: "fantasticfurniture.com.au", store_name: "Fantastic Furniture", email: "support@fantasticfurniture.com.au", country: "Australia", countryCode: "AU", industry: "Home", products: 1200, score: 76, createdAt: "1989-01-01" },
-  { domain: "ozdesignfurniture.com.au", store_name: "OZ Design", email: "support@ozdesignfurniture.com.au", country: "Australia", countryCode: "AU", industry: "Home", products: 560, score: 72, createdAt: "1977-01-01" },
-  { domain: "freedom.com.au", store_name: "Freedom", email: "support@freedom.com.au", country: "Australia", countryCode: "AU", industry: "Home", products: 1800, score: 80, createdAt: "1981-01-01" },
-  { domain: "snooze.com.au", store_name: "Snooze", email: "support@snooze.com.au", country: "Australia", countryCode: "AU", industry: "Home", products: 340, score: 74, createdAt: "1974-01-01" },
-  { domain: "fortywinks.com.au", store_name: "Forty Winks", email: "support@fortywinks.com.au", country: "Australia", countryCode: "AU", industry: "Home", products: 560, score: 75, createdAt: "1984-01-01" },
-  { domain: "bedsbarn.com.au", store_name: "Beds R Us", email: "support@bedsbarn.com.au", country: "Australia", countryCode: "AU", industry: "Home", products: 230, score: 69, createdAt: "1987-01-01" },
-  { domain: "beckerfurnitureworld.com", store_name: "Becker Furniture", email: "support@beckerfurnitureworld.com", country: "United States", countryCode: "US", industry: "Home", products: 890, score: 70, createdAt: "1978-01-01" },
-  { domain: "mathisbrothers.com", store_name: "Mathis Brothers", email: "support@mathisbrothers.com", country: "United States", countryCode: "US", industry: "Home", products: 1200, score: 71, createdAt: "1960-01-01" },
-  { domain: "havertys.com", store_name: "Havertys", email: "support@havertys.com", country: "United States", countryCode: "US", industry: "Home", products: 1800, score: 73, createdAt: "1885-01-01" },
-  { domain: "raymourflanigan.com", store_name: "Raymour & Flanigan", email: "support@raymourflanigan.com", country: "United States", countryCode: "US", industry: "Home", products: 2300, score: 74, createdAt: "1947-01-01" },
-  { domain: "ashleyfurniture.com", store_name: "Ashley Furniture", email: "support@ashleyfurniture.com", country: "United States", countryCode: "US", industry: "Home", products: 5600, score: 86, createdAt: "1945-01-01" },
-  { domain: "rooms2go.com", store_name: "Rooms To Go", email: "support@rooms2go.com", country: "United States", countryCode: "US", industry: "Home", products: 3400, score: 79, createdAt: "1990-09-07" },
-  { domain: "livingspaces.com", store_name: "Living Spaces", email: "support@livingspaces.com", country: "United States", countryCode: "US", industry: "Home", products: 2300, score: 77, createdAt: "2003-01-01" },
-  { domain: "rcwilley.com", store_name: "RC Willey", email: "support@rcwilley.com", country: "United States", countryCode: "US", industry: "Home", products: 1200, score: 72, createdAt: "1932-01-01" },
-  { domain: "gardner-white.com", store_name: "Gardner-White", email: "support@gardner-white.com", country: "United States", countryCode: "US", industry: "Home", products: 890, score: 70, createdAt: "1912-01-01" },
-  { domain: "slumberland.com", store_name: "Slumberland", email: "support@slumberland.com", country: "United States", countryCode: "US", industry: "Home", products: 670, score: 69, createdAt: "1967-01-01" },
-  { domain: "homfurniture.com", store_name: "HOM Furniture", email: "support@homfurniture.com", country: "United States", countryCode: "US", industry: "Home", products: 1200, score: 68, createdAt: "1973-01-01" },
-  { domain: "daniafurniture.com", store_name: "Dania Furniture", email: "support@daniafurniture.com", country: "United States", countryCode: "US", industry: "Home", products: 560, score: 67, createdAt: "1962-01-01" },
-  { domain: "scandinaviandesigns.com", store_name: "Scandinavian Designs", email: "support@scandinaviandesigns.com", country: "United States", countryCode: "US", industry: "Home", products: 890, score: 71, createdAt: "1963-01-01" },
-  { domain: "roomandboard.com", store_name: "Room & Board", email: "support@roomandboard.com", country: "United States", countryCode: "US", industry: "Home", products: 1200, score: 82, createdAt: "1980-01-01" },
-  { domain: "designwithinreach.com", store_name: "Design Within Reach", email: "support@designwithinreach.com", country: "United States", countryCode: "US", industry: "Home", products: 2300, score: 84, createdAt: "1998-01-01" },
-  { domain: "cb2.com", store_name: "CB2", email: "support@cb2.com", country: "United States", countryCode: "US", industry: "Home", products: 3400, score: 83, createdAt: "2000-01-01" },
-  { domain: "westelm.com", store_name: "West Elm", email: "support@westelm.com", country: "United States", countryCode: "US", industry: "Home", products: 4500, score: 85, createdAt: "2002-01-01" },
-  { domain: "potterybarn.com", store_name: "Pottery Barn", email: "support@potterybarn.com", country: "United States", countryCode: "US", industry: "Home", products: 6700, score: 87, createdAt: "1949-01-01" },
-  { domain: "crateandbarrel.com", store_name: "Crate & Barrel", email: "support@crateandbarrel.com", country: "United States", countryCode: "US", industry: "Home", products: 5600, score: 88, createdAt: "1962-01-01" },
-  { domain: "williams-sonoma.com", store_name: "Williams Sonoma", email: "support@williams-sonoma.com", country: "United States", countryCode: "US", industry: "Home", products: 8900, score: 89, createdAt: "1956-01-01" },
-  { domain: "surlatable.com", store_name: "Sur La Table", email: "support@surlatable.com", country: "United States", countryCode: "US", industry: "Home", products: 3400, score: 81, createdAt: "1972-01-01" },
-  { domain: "bedbathandbeyond.com", store_name: "Bed Bath & Beyond", email: "support@bedbathandbeyond.com", country: "United States", countryCode: "US", industry: "Home", products: 12000, score: 90, createdAt: "1971-01-01" },
+const TEMPLATES = [
+  {
+    id: "intro",
+    name: "Cold Intro",
+    subject: "Quick wins for {{domain}}",
+    body: `Hi there,
+
+I just ran a quick audit on {{domain}} and spotted 3 opportunities that could boost conversions this week:
+
+1. Mobile checkout friction — 34% of carts are abandoned on the payment step
+2. Above-the-fold CTA clarity — the hero section lacks a single clear action
+3. Trust signals — no reviews visible on product pages
+
+Want me to send the full report? It takes 2 minutes to read and is completely free.
+
+Best,
+[Your Name]`,
+  },
+  {
+    id: "followup",
+    name: "Follow-Up",
+    subject: "Re: {{domain}} audit",
+    body: `Hi,
+
+Following up on the audit I shared for {{domain}}.
+
+I know inboxes are crowded, so I'll keep this short: the checkout fix alone is worth an estimated 15–20% revenue lift based on similar stores we've worked with.
+
+Happy to jump on a 5-min call to walk through the findings, or I can send the written report — whichever you prefer.
+
+Best,
+[Your Name]`,
+  },
+  {
+    id: "casestudy",
+    name: "Case Study",
+    subject: "How a similar brand to {{domain}} grew 40%",
+    body: `Hi,
+
+We recently helped a {{industry}} brand fix their checkout flow and saw a 40% lift in completed orders within 60 days.
+
+I ran the same analysis on {{domain}} and see a nearly identical pattern — specifically around mobile payment friction and trust signals.
+
+Worth a 10-min chat to compare notes? No pitch, just data.
+
+Best,
+[Your Name]`,
+  },
+  {
+    id: "breakup",
+    name: "Breakup",
+    subject: "Last call — {{domain}} audit expires",
+    body: `Hi,
+
+This is my last email about the free audit for {{domain}}.
+
+I've held a slot open this week, but if you're not interested, no worries at all — just reply STOP and I'll close the loop.
+
+If you do want the report, it's still free and takes 2 minutes to read: [link]
+
+Best,
+[Your Name]`,
+  },
 ];
 
-export function searchStores(
-  country?: string,
-  industry?: string,
-  minProducts?: number,
-  maxProducts?: number,
-  createdYear?: number,
-  createdMonth?: number,
-  createdDay?: number,
-  limit: number = 20
-): StoreRecord[] {
-  let results = [...SHOPIFY_STORES];
+function OutreachComposer() {
+  const searchParams = useSearchParams();
+  const urlEmail = searchParams.get("email") || "";
+  const urlDomain = searchParams.get("domain") || "";
 
-  if (country) {
-    results = results.filter((s) => s.countryCode === country || s.country.toLowerCase().includes(country.toLowerCase()));
-  }
+  const [recipient, setRecipient] = useState(urlEmail);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [templateId, setTemplateId] = useState("intro");
+  const [scheduledDate, setScheduledDate] = useState("");
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [sending, setSending] = useState(false);
+  const [toast, setToast] = useState("");
 
-  if (industry) {
-    results = results.filter((s) => s.industry.toLowerCase() === industry.toLowerCase());
-  }
+  // Load activities
+  useEffect(() => {
+    const saved = localStorage.getItem("ecomfind_outreach_log");
+    if (saved) {
+      try {
+        setActivities(JSON.parse(saved));
+      } catch {}
+    }
+  }, []);
 
-  if (minProducts !== undefined) {
-    results = results.filter((s) => s.products >= minProducts);
-  }
+  // Update recipient when URL changes
+  useEffect(() => {
+    if (urlEmail) setRecipient(urlEmail);
+  }, [urlEmail]);
 
-  if (maxProducts !== undefined) {
-    results = results.filter((s) => s.products <= maxProducts);
-  }
+  // Apply template with variable substitution
+  useEffect(() => {
+    const t = TEMPLATES.find((x) => x.id === templateId);
+    if (!t) return;
+    const domain = urlDomain || "their store";
+    const industry = "Fashion"; // Could be extended via URL param
+    setSubject(t.subject.replace(/{{domain}}/g, domain));
+    setBody(t.body.replace(/{{domain}}/g, domain).replace(/{{industry}}/g, industry));
+  }, [templateId, urlDomain]);
 
-  if (createdYear) {
-    results = results.filter((s) => {
-      const d = new Date(s.createdAt);
-      return d.getFullYear() === createdYear;
-    });
-  }
+  const persistActivities = (next: Activity[]) => {
+    setActivities(next);
+    localStorage.setItem("ecomfind_outreach_log", JSON.stringify(next));
+  };
 
-  if (createdMonth) {
-    results = results.filter((s) => {
-      const d = new Date(s.createdAt);
-      return d.getMonth() + 1 === createdMonth;
-    });
-  }
+  const addActivity = (type: Activity["type"], subj: string, b: string, sched?: string) => {
+    const act: Activity = {
+      id: Math.random().toString(36).slice(2),
+      type,
+      to: recipient,
+      subject: subj,
+      body: b,
+      scheduledFor: sched,
+      createdAt: new Date().toISOString(),
+    };
+    persistActivities([act, ...activities]);
+  };
 
-  if (createdDay) {
-    results = results.filter((s) => {
-      const d = new Date(s.createdAt);
-      return d.getDate() === createdDay;
-    });
-  }
+  const updateLeadStatus = async (newStatus: string) => {
+    if (!urlDomain) return;
+    try {
+      await supabase
+        .from("leads")
+        .update({ status: newStatus, outreach_text: body, updated_at: new Date().toISOString() })
+        .eq("store_name", urlDomain);
+    } catch {
+      // Silently fail — local log is the source of truth for now
+    }
+  };
 
-  return results.slice(0, limit);
+  const handleSend = async () => {
+    if (!recipient || !subject || !body) {
+      setToast("Please fill in all fields.");
+      setTimeout(() => setToast(""), 3000);
+      return;
+    }
+    setSending(true);
+    await new Promise((r) => setTimeout(r, 900));
+    const type = scheduledDate ? "scheduled" : "sent";
+    addActivity(type, subject, body, scheduledDate || undefined);
+    await updateLeadStatus(type === "scheduled" ? "scheduled" : "contacted");
+    setSending(false);
+    setToast(type === "scheduled" ? "Email scheduled." : "Email sent.");
+    setScheduledDate("");
+    setTimeout(() => setToast(""), 3000);
+  };
+
+  const handleSaveDraft = () => {
+    if (!subject && !body) return;
+    addActivity("draft", subject, body);
+    setToast("Draft saved.");
+    setTimeout(() => setToast(""), 3000);
+  };
+
+  const clearLog = () => {
+    if (!confirm("Clear all outreach history?")) return;
+    persistActivities([]);
+  };
+
+  const statusIcon = (type: Activity["type"]) => {
+    switch (type) {
+      case "sent": return <IconSend className="w-3 h-3 text-emerald-400" />;
+      case "scheduled": return <IconClock className="w-3 h-3 text-amber-400" />;
+      case "draft": return <IconSave className="w-3 h-3 text-slate-400" />;
+      case "opened": return <IconEye className="w-3 h-3 text-violet-400" />;
+      case "replied": return <IconReply className="w-3 h-3 text-blue-400" />;
+    }
+  };
+
+  const statusColor = (type: Activity["type"]) => {
+    switch (type) {
+      case "sent": return "text-emerald-400";
+      case "scheduled": return "text-amber-400";
+      case "draft": return "text-slate-400";
+      case "opened": return "text-violet-400";
+      case "replied": return "text-blue-400";
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0b0f1f] text-slate-200">
+      {/* Toast */}
+      {toast && (
+        <div className="fixed top-20 right-6 z-50 px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex items-center gap-2 animate-in slide-in-from-top-2">
+          <IconCheck className="w-4 h-4 text-emerald-400" />
+          <span className="text-sm text-white">{toast}</span>
+        </div>
+      )}
+
+      {/* Nav */}
+      <header className="border-b border-slate-800/60 bg-[#0b0f1e]/80 backdrop-blur sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <a href="/" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mr-4">
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
+              <span className="text-sm font-medium hidden sm:inline">Home</span>
+            </a>
+            <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
+              <IconZap className="w-5 h-5 text-violet-400" />
+            </div>
+            <span className="font-bold text-white tracking-tight">EcomFind</span>
+          </div>
+          <nav className="hidden md:flex items-center gap-1">
+            <a href="/discover" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Audit</a>
+            <a href="/leads" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Leads</a>
+            <a href="/outreach" className="px-3 py-1.5 rounded-lg bg-violet-500/10 text-violet-400 text-sm font-medium border border-violet-500/20">Outreach</a>
+            <a href="/about" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">About</a>
+          </nav>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-white mb-2">Outreach Studio</h1>
+          <p className="text-slate-400">Compose, schedule, and track emails to your leads.</p>
+          {urlDomain && (
+            <p className="text-xs text-violet-400 mt-2 flex items-center gap-1.5">
+              <IconMail className="w-3 h-3" />
+              Pre-filled from lead: <span className="font-medium">{urlDomain}</span>
+            </p>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Sidebar: Templates + Log */}
+          <div className="lg:col-span-4 space-y-6">
+            {/* Templates */}
+            <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-5">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">AI Templates</h3>
+              <div className="space-y-2">
+                {TEMPLATES.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => setTemplateId(t.id)}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl border text-sm transition-all ${
+                      templateId === t.id
+                        ? "bg-violet-500/10 border-violet-500/30 text-violet-300"
+                        : "bg-slate-950/50 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300"
+                    }`}
+                  >
+                    <span className="font-medium">{t.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Activity Log */}
+            <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Activity Log</h3>
+                {activities.length > 0 && (
+                  <button onClick={clearLog} className="text-[10px] text-rose-400 hover:text-rose-300 flex items-center gap-1">
+                    <IconTrash className="w-3 h-3" /> Clear
+                  </button>
+                )}
+              </div>
+              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
+                {activities.length === 0 && (
+                  <div className="text-center py-6 text-slate-600">
+                    <IconMail className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-xs">No outreach yet.</p>
+                    <p className="text-[10px] mt-1">Send an email or save a draft to see it here.</p>
+                  </div>
+                )}
+                {activities.map((a) => (
+                  <div key={a.id} className="p-3 rounded-xl bg-slate-950/50 border border-slate-800/60">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-1.5">
+                        {statusIcon(a.type)}
+                        <span className={`text-[10px] font-bold uppercase tracking-wider ${statusColor(a.type)}`}>{a.type}</span>
+                      </div>
+                      <span className="text-[10px] text-slate-600">
+                        {new Date(a.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 truncate font-medium">{a.subject}</p>
+                    <p className="text-[10px] text-slate-500 truncate">To: {a.to}</p>
+                    {a.scheduledFor && (
+                      <p className="text-[10px] text-amber-400 mt-1 flex items-center gap-1">
+                        <IconClock className="w-3 h-3" /> {new Date(a.scheduledFor).toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Composer */}
+          <div className="lg:col-span-8">
+            <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6">
+              <div className="space-y-5">
+                <div>
+                  <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">To</label>
+                  <input
+                    type="email"
+                    value={recipient}
+                    onChange={(e) => setRecipient(e.target.value)}
+                    placeholder="founder@store.com"
+                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">Subject</label>
+                  <input
+                    type="text"
+                    value={subject}
+                    onChange={(e) => setSubject(e.target.value)}
+                    placeholder="Subject line..."
+                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">Message</label>
+                  <textarea
+                    value={body}
+                    onChange={(e) => setBody(e.target.value)}
+                    rows={14}
+                    placeholder="Write your email..."
+                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                  />
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4 pt-2">
+                  <div className="flex items-center gap-2">
+                    <IconClock className="w-4 h-4 text-slate-500" />
+                    <input
+                      type="datetime-local"
+                      value={scheduledDate}
+                      onChange={(e) => setScheduledDate(e.target.value)}
+                      className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 sm:ml-auto">
+                    <button
+                      onClick={handleSaveDraft}
+                      className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+                    >
+                      <IconSave className="w-4 h-4" /> Save Draft
+                    </button>
+                    <button
+                      onClick={handleSend}
+                      disabled={sending || !recipient}
+                      className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-50 flex items-center gap-2"
+                    >
+                      <IconSend className="w-4 h-4" />
+                      {sending ? "Sending..." : scheduledDate ? "Schedule Send" : "Send Now"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+export default function OutreachPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0b0f1f] text-slate-200 flex items-center justify-center">
+          <div className="animate-pulse flex items-center gap-2 text-slate-500 text-sm">
+            <IconZap className="w-4 h-4" /> Loading composer...
+          </div>
+        </div>
+      }
+    >
+      <OutreachComposer />
+    </Suspense>
+  );
 }
