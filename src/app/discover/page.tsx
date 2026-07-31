@@ -265,41 +265,39 @@ ${data.emails.map(e => `<div class="card">${e}</div>`).join("")}
 /* ─── Scanning Animation Visual ─── */
 function ScanVisual() {
   return (
-    <div className="relative w-full max-w-md mx-auto aspect-[4/3] rounded-2xl bg-slate-900/60 border border-slate-800 overflow-hidden">
-      {/* Scan line */}
-      <div className="absolute inset-x-0 h-px bg-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.4)] animate-[scan_3s_ease-in-out_infinite]" style={{ top: "10%" }} />
-      {/* Grid dots */}
-      <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle, #334155 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
-      {/* Floating nodes */}
-      <div className="absolute top-[20%] left-[15%] w-3 h-3 rounded-full bg-rose-500 animate-pulse" />
-      <div className="absolute top-[35%] right-[20%] w-2 h-2 rounded-full bg-amber-500 animate-pulse" style={{ animationDelay: "0.5s" }} />
-      <div className="absolute bottom-[30%] left-[25%] w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" style={{ animationDelay: "1s" }} />
-      <div className="absolute bottom-[20%] right-[30%] w-2 h-2 rounded-full bg-violet-500 animate-pulse" style={{ animationDelay: "1.5s" }} />
-      {/* Browser chrome */}
-      <div className="absolute top-3 left-3 flex gap-1.5">
-        <div className="w-2.5 h-2.5 rounded-full bg-rose-500/60" />
-        <div className="w-2.5 h-2.5 rounded-full bg-amber-500/60" />
-        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/60" />
-      </div>
-      <div className="absolute top-3 right-3 text-[10px] text-slate-600 font-mono">AI scanning your store in real time</div>
-      {/* Center label */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-3">
-            <IconScan className="w-8 h-8 text-emerald-400" />
-          </div>
-          <p className="text-xs text-emerald-400 font-mono">Scanning 200+ factors...</p>
-        </div>
-      </div>
-      <style jsx>{`
-        @keyframes scan {
+    <>
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes scanLine {
           0%, 100% { top: 10%; opacity: 0; }
           10% { opacity: 1; }
           90% { opacity: 1; }
           100% { top: 90%; opacity: 0; }
         }
-      `}</style>
-    </div>
+        .scan-anim { animation: scanLine 3s ease-in-out infinite; }
+      `}} />
+      <div className="relative w-full max-w-md mx-auto aspect-[4/3] rounded-2xl bg-slate-900/60 border border-slate-800 overflow-hidden">
+        <div className="absolute inset-x-0 h-px bg-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.4)] scan-anim" />
+        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle, #334155 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
+        <div className="absolute top-[20%] left-[15%] w-3 h-3 rounded-full bg-rose-500 animate-pulse" />
+        <div className="absolute top-[35%] right-[20%] w-2 h-2 rounded-full bg-amber-500 animate-pulse" style={{ animationDelay: "0.5s" }} />
+        <div className="absolute bottom-[30%] left-[25%] w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" style={{ animationDelay: "1s" }} />
+        <div className="absolute bottom-[20%] right-[30%] w-2 h-2 rounded-full bg-violet-500 animate-pulse" style={{ animationDelay: "1.5s" }} />
+        <div className="absolute top-3 left-3 flex gap-1.5">
+          <div className="w-2.5 h-2.5 rounded-full bg-rose-500/60" />
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-500/60" />
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/60" />
+        </div>
+        <div className="absolute top-3 right-3 text-[10px] text-slate-600 font-mono">AI scanning your store in real time</div>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-3">
+              <IconScan className="w-8 h-8 text-emerald-400" />
+            </div>
+            <p className="text-xs text-emerald-400 font-mono">Scanning 200+ factors...</p>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -314,7 +312,6 @@ export default function DiscoverPage() {
   const [user, setUser] = useState<any>(null);
   const reportRef = useRef<HTMLDivElement>(null);
 
-  /* ─── Check auth on mount ─── */
   useEffect(() => {
     const saved = localStorage.getItem("lastAudit");
     if (saved) setData(JSON.parse(saved));
@@ -343,7 +340,6 @@ export default function DiscoverPage() {
       setShowAuthModal(true);
       return;
     }
-    // User is logged in — generate and download
     const html = generateReportHTML(data!);
     const blob = new Blob([html], { type: "text/html" });
     const urlObj = URL.createObjectURL(blob);
@@ -408,7 +404,7 @@ export default function DiscoverPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        {/* ─── Premium Hero ─── */}
+        {/* Premium Hero */}
         {!data && !loading && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center mb-16 min-h-[60vh]">
             <div>
@@ -452,7 +448,7 @@ export default function DiscoverPage() {
           </div>
         )}
 
-        {/* ─── Loading State ─── */}
+        {/* Loading State */}
         {loading && (
           <div className="flex flex-col items-center justify-center py-32">
             <ScanVisual />
@@ -461,7 +457,7 @@ export default function DiscoverPage() {
           </div>
         )}
 
-        {/* ─── Report ─── */}
+        {/* Report */}
         {data && (
           <div ref={reportRef} className="space-y-6">
             {/* Back to Audit */}
