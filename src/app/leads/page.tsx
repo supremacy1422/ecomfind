@@ -384,7 +384,30 @@ export default function LeadsPage() {
               </button>
             </div>
           </div>
-          {siError && <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">{siError}</div>}
+          {siError && (
+  <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs">
+    {siError}
+    <button 
+      onClick={() => {
+        const demoStores = [
+          { domain: "fashionnova.com", country: "US", industry: "Fashion", email: "contact@fashionnova.com" },
+          { domain: "gymshark.com", country: "GB", industry: "Fitness", email: "support@gymshark.com" },
+          { domain: "allbirds.com", country: "US", industry: "Fashion", email: "hello@allbirds.com" },
+          { domain: "glossier.com", country: "US", industry: "Beauty", email: "press@glossier.com" },
+          { domain: "mvmt.com", country: "US", industry: "Jewelry", email: "hello@mvmt.com" },
+          { domain: "bombas.com", country: "US", industry: "Fashion", email: "help@bombas.com" },
+          { domain: "brooklinen.com", country: "US", industry: "Home", email: "hello@brooklinen.com" },
+          { domain: "mejuri.com", country: "CA", industry: "Jewelry", email: "care@mejuri.com" },
+        ];
+        setSiResults(demoStores);
+        setSiError("");
+      }}
+      className="ml-2 underline hover:text-rose-300 cursor-pointer"
+    >
+      Load demo data instead
+    </button>
+  </div>
+)}
           {siResults.length > 0 && (
             <div className="border-t border-slate-800 pt-4">
               <div className="flex items-center justify-between mb-3">
