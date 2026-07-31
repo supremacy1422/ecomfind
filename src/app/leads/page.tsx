@@ -21,16 +21,35 @@ function parseCSV(text: string): string[][] {
 
     if (inQuotes) {
       if (char === '"') {
-        if (nextChar === '"') { cell += '"'; i++; } else { inQuotes = false; }
-      } else { cell += char; }
+        if (nextChar === '"') {
+          cell += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cell += char;
+      }
     } else {
-      if (char === '"') { inQuotes = true; }
-      else if (char === ',') { row.push(cell.trim()); cell = ""; }
-      else if (char === '\n') { row.push(cell.trim()); if (row.some(c => c.length > 0)) result.push(row); row = []; cell = ""; }
-      else if (char !== '\r') { cell += char; }
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === ',') {
+        row.push(cell.trim());
+        cell = "";
+      } else if (char === '\n') {
+        row.push(cell.trim());
+        if (row.some((c) => c.length > 0)) result.push(row);
+        row = [];
+        cell = "";
+      } else if (char !== '\r') {
+        cell += char;
+      }
     }
   }
-  if (cell.length > 0 || row.length > 0) { row.push(cell.trim()); if (row.some(c => c.length > 0)) result.push(row); }
+  if (cell.length > 0 || row.length > 0) {
+    row.push(cell.trim());
+    if (row.some((c) => c.length > 0)) result.push(row);
+  }
   return result;
 }
 
@@ -109,7 +128,6 @@ export default function LeadsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 12;
 
-  /* ─── StoreIndex State ─── */
   const [siCountry, setSiCountry] = useState("US");
   const [siIndustry, setSiIndustry] = useState("");
   const [siProducts, setSiProducts] = useState("10-50");
@@ -119,7 +137,9 @@ export default function LeadsPage() {
   const [siImporting, setSiImporting] = useState(false);
   const [siImportCount, setSiImportCount] = useState(0);
 
-  useEffect(() => { fetchLeads(); }, []);
+  useEffect(() => {
+    fetchLeads();
+  }, []);
 
   const fetchLeads = useCallback(async () => {
     setLoading(true);
@@ -131,7 +151,6 @@ export default function LeadsPage() {
     setLoading(false);
   }, []);
 
-  /* ─── StoreIndex Search ─── */
   const searchStoreIndex = async () => {
     setSiLoading(true);
     setSiError("");
@@ -191,16 +210,16 @@ export default function LeadsPage() {
     }
   };
 
-  /* ─── Filtering ─── */
   const filteredLeads = useMemo(() => {
     let result = leads;
     if (search.trim()) {
       const q = search.toLowerCase();
-      result = result.filter(l =>
-        l.store_name?.toLowerCase().includes(q) ||
-        l.store_url?.toLowerCase().includes(q) ||
-        l.email?.toLowerCase().includes(q) ||
-        l.notes?.toLowerCase().includes(q)
+      result = result.filter(
+        (l) =>
+          l.store_name?.toLowerCase().includes(q) ||
+          l.store_url?.toLowerCase().includes(q) ||
+          l.email?.toLowerCase().includes(q) ||
+          l.notes?.toLowerCase().includes(q)
       );
     }
     return result;
@@ -212,28 +231,47 @@ export default function LeadsPage() {
   }, [filteredLeads, currentPage]);
 
   const totalPages = Math.max(1, Math.ceil(filteredLeads.length / pageSize));
-  useEffect(() => { setCurrentPage(1); }, [search]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
 
-  const stats = useMemo(() => ({
-    total: leads.length,
-    validEmails: leads.filter(l => l.email && l.email.length > 3).length,
-    highQuality: leads.filter(l => (l.score || 0) >= 70).length,
-    uncontacted: leads.filter(l => !l.status || l.status === "new").length,
-  }), [leads]);
+  const stats = useMemo(
+    () => ({
+      total: leads.length,
+      validEmails: leads.filter((l) => l.email && l.email.length > 3).length,
+      highQuality: leads.filter((l) => (l.score || 0) >= 70).length,
+      uncontacted: leads.filter((l) => !l.status || l.status === "new").length,
+    }),
+    [leads]
+  );
 
   const toggleSelect = (id: string) => {
-    setSelected(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const selectAllOnPage = () => {
-    const pageIds = paginatedLeads.map(l => l.id);
-    const allSelected = pageIds.every(id => selected.has(id));
-    setSelected(prev => { const next = new Set(prev); if (allSelected) pageIds.forEach(id => next.delete(id)); else pageIds.forEach(id => next.add(id)); return next; });
+    const pageIds = paginatedLeads.map((l) => l.id);
+    const allSelected = pageIds.every((id) => selected.has(id));
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allSelected) pageIds.forEach((id) => next.delete(id));
+      else pageIds.forEach((id) => next.add(id));
+      return next;
+    });
   };
 
   const selectAllWithEmail = () => {
-    const emailIds = filteredLeads.filter(l => l.email).map(l => l.id);
-    setSelected(prev => { const next = new Set(prev); emailIds.forEach(id => next.add(id)); return next; });
+    const emailIds = filteredLeads.filter((l) => l.email).map((l) => l.id);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      emailIds.forEach((id) => next.add(id));
+      return next;
+    });
   };
 
   const deleteSelected = async () => {
@@ -244,11 +282,13 @@ export default function LeadsPage() {
     fetchLeads();
   };
 
-  /* ─── CSV Import ─── */
   const handleCSVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 4 * 1024 * 1024) { setImportError("File exceeds 4MB."); return; }
+    if (file.size > 4 * 1024 * 1024) {
+      setImportError("File exceeds 4MB.");
+      return;
+    }
     const text = await file.text();
     parseAndImport(text);
   };
@@ -256,40 +296,67 @@ export default function LeadsPage() {
   const parseAndImport = async (text: string) => {
     setImportError("");
     const parsed = parseCSV(text);
-    if (parsed.length < 2) { setImportError("CSV needs header + data row."); return; }
-    const headers = parsed[0].map(h => h.toLowerCase().trim().replace(/^["']|["']$/g, ""));
-    const getCol = (names: string[]) => { for (const n of names) { const i = headers.indexOf(n.toLowerCase()); if (i !== -1) return i; } return -1; };
-    const domainIdx = getCol(["domain","store_name","store name","name","url","website","site","store_url"]);
-    const emailIdx = getCol(["email","e-mail","contact_email","contact email"]);
-    if (domainIdx === -1 && emailIdx === -1) { setImportError("Need domain/store_name or email column."); return; }
+    if (parsed.length < 2) {
+      setImportError("CSV needs header + data row.");
+      return;
+    }
+    const headers = parsed[0].map((h) => h.toLowerCase().trim().replace(/^["']|["']$/g, ""));
+    const getCol = (names: string[]) => {
+      for (const n of names) {
+        const i = headers.indexOf(n.toLowerCase());
+        if (i !== -1) return i;
+      }
+      return -1;
+    };
+    const domainIdx = getCol(["domain", "store_name", "store name", "name", "url", "website", "site", "store_url"]);
+    const emailIdx = getCol(["email", "e-mail", "contact_email", "contact email"]);
+    if (domainIdx === -1 && emailIdx === -1) {
+      setImportError("Need domain/store_name or email column.");
+      return;
+    }
 
-    const rows: any[] = [];
+    let imported = 0;
     for (let i = 1; i < parsed.length; i++) {
       const vals = parsed[i];
       const domain = domainIdx !== -1 ? vals[domainIdx]?.trim() : "";
       const email = emailIdx !== -1 ? vals[emailIdx]?.trim() : "";
       if (!domain && !email) continue;
-      rows.push({
+
+      const row = {
         store_name: domain || "Unknown",
         store_url: domain ? `https://${domain}` : "",
         email: email || null,
         status: "new",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      });
+      };
+
+      const { data: existing } = await supabase.from("leads").select("id").eq("store_url", row.store_url).maybeSingle();
+      if (existing) {
+        await supabase.from("leads").update({ ...row, updated_at: new Date().toISOString() }).eq("id", existing.id);
+        imported++;
+      } else {
+        const { error } = await supabase.from("leads").insert(row);
+        if (!error) imported++;
+      }
     }
-    if (rows.length === 0) { setImportError("No valid rows."); return; }
-    const { error } = await supabase.from("leads").upsert(rows, { onConflict: "store_url" });
-    if (error) setImportError(error.message);
-    else { setShowImport(false); setImportText(""); fetchLeads(); }
+    if (imported === 0) {
+      setImportError("No valid rows imported.");
+      return;
+    }
+    setShowImport(false);
+    setImportText("");
+    fetchLeads();
   };
 
   const downloadCSV = () => {
-    const headers = ["store_name","store_url","email","score","status","notes","created_at"];
-    const rows = filteredLeads.map(l => [
-      l.store_name||"",l.store_url||"",l.email||"",l.score||"",l.status||"",l.notes||"",l.created_at||""
-    ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(","));
-    const csv = [headers.join(","),...rows].join("\n");
+    const headers = ["store_name", "store_url", "email", "score", "status", "notes", "created_at"];
+    const rows = filteredLeads.map((l) =>
+      [l.store_name || "", l.store_url || "", l.email || "", l.score || "", l.status || "", l.notes || "", l.created_at || ""]
+        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+        .join(",")
+    );
+    const csv = [headers.join(","), ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -306,7 +373,13 @@ export default function LeadsPage() {
     if (score >= 40) return "bg-orange-500/10 text-orange-400 border-orange-500/20";
     return "bg-rose-500/10 text-rose-400 border-rose-500/20";
   };
-  const qualityLabel = (score?: number) => { if (!score) return "—"; if (score >= 80) return "Excellent"; if (score >= 60) return "Good"; if (score >= 40) return "Fair"; return "Poor"; };
+  const qualityLabel = (score?: number) => {
+    if (!score) return "—";
+    if (score >= 80) return "Excellent";
+    if (score >= 60) return "Good";
+    if (score >= 40) return "Fair";
+    return "Poor";
+  };
 
   return (
     <div className="min-h-screen bg-[#0b0f1f] text-slate-200">
@@ -315,10 +388,15 @@ export default function LeadsPage() {
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <a href="/" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mr-4">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <polyline points="9 22 9 12 15 12 15 22"/>
+              </svg>
               <span className="text-sm font-medium hidden sm:inline">Home</span>
             </a>
-            <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center"><IconZap className="w-5 h-5 text-violet-400" /></div>
+            <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
+              <IconZap className="w-5 h-5 text-violet-400" />
+            </div>
             <span className="font-bold text-white tracking-tight">EcomFind</span>
           </div>
           <nav className="hidden md:flex items-center gap-1">
@@ -337,7 +415,7 @@ export default function LeadsPage() {
           <p className="text-slate-400">Find Shopify stores with validated owner emails and high-intent signals.</p>
         </div>
 
-        {/* ─── StoreIndex Search ─── */}
+        {/* StoreIndex Search */}
         <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 mb-8">
           <div className="flex items-center gap-2 mb-4">
             <IconWorld className="w-5 h-5 text-emerald-400" />
@@ -347,27 +425,39 @@ export default function LeadsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
             <div>
               <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">Country</label>
-              <select value={siCountry} onChange={e => setSiCountry(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white">
-                <option value="US">United States</option><option value="GB">United Kingdom</option><option value="CA">Canada</option>
-                <option value="AU">Australia</option><option value="DE">Germany</option><option value="FR">France</option>
-                <option value="SE">Sweden</option><option value="NL">Netherlands</option><option value="">Any</option>
+              <select value={siCountry} onChange={(e) => setSiCountry(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white">
+                <option value="US">United States</option>
+                <option value="GB">United Kingdom</option>
+                <option value="CA">Canada</option>
+                <option value="AU">Australia</option>
+                <option value="DE">Germany</option>
+                <option value="FR">France</option>
+                <option value="SE">Sweden</option>
+                <option value="NL">Netherlands</option>
+                <option value="">Any</option>
               </select>
             </div>
             <div>
               <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">Industry</label>
-              <select value={siIndustry} onChange={e => setSiIndustry(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white">
+              <select value={siIndustry} onChange={(e) => setSiIndustry(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white">
                 <option value="">All Industries</option>
-                <option value="Fashion">Fashion</option><option value="Jewelry">Jewelry</option>
-                <option value="Home">Home</option><option value="Beauty">Beauty</option>
-                <option value="Fitness">Fitness</option><option value="Electronics">Electronics</option>
-                <option value="Pets">Pets</option><option value="Food">Food</option>
+                <option value="Fashion">Fashion</option>
+                <option value="Jewelry">Jewelry</option>
+                <option value="Home">Home</option>
+                <option value="Beauty">Beauty</option>
+                <option value="Fitness">Fitness</option>
+                <option value="Electronics">Electronics</option>
+                <option value="Pets">Pets</option>
+                <option value="Food">Food</option>
               </select>
             </div>
             <div>
               <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">Products</label>
-              <select value={siProducts} onChange={e => setSiProducts(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white">
-                <option value="1-10">1-10</option><option value="10-50">10-50</option>
-                <option value="50-100">50-100</option><option value="100-500">100-500</option>
+              <select value={siProducts} onChange={(e) => setSiProducts(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white">
+                <option value="1-10">1-10</option>
+                <option value="10-50">10-50</option>
+                <option value="50-100">50-100</option>
+                <option value="100-500">100-500</option>
                 <option value="500-99999">500+</option>
               </select>
             </div>
@@ -381,7 +471,7 @@ export default function LeadsPage() {
           {siError && (
             <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center justify-between">
               <span>{siError}</span>
-              <button 
+              <button
                 onClick={() => {
                   const demoStores = [
                     { domain: "fashionnova.com", country: "US", industry: "Fashion", email: "contact@fashionnova.com" },
@@ -416,7 +506,9 @@ export default function LeadsPage() {
                   <div key={i} className="flex items-center justify-between p-3 rounded-lg bg-slate-950/50 border border-slate-800">
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-white truncate">{s.domain || s.shopifyDomain || "Unknown"}</p>
-                      <p className="text-xs text-slate-500">{s.country} {s.industry && `· ${s.industry}`} {s.email && `· ${s.email}`}</p>
+                      <p className="text-xs text-slate-500">
+                        {s.country} {s.industry && `· ${s.industry}`} {s.email && `· ${s.email}`}
+                      </p>
                     </div>
                     {s.email && <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">Has Email</span>}
                   </div>
@@ -426,7 +518,9 @@ export default function LeadsPage() {
           )}
 
           {!siLoading && !siError && siResults.length === 0 && (
-            <div className="text-center py-6 text-slate-600"><p className="text-xs">No results yet. Use filters and click Search.</p></div>
+            <div className="text-center py-6 text-slate-600">
+              <p className="text-xs">No results yet. Use filters and click Search.</p>
+            </div>
           )}
         </div>
 
@@ -435,22 +529,45 @@ export default function LeadsPage() {
           <div className="flex-1 flex gap-2">
             <div className="relative flex-1">
               <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by store name, URL, email, or notes..." className="w-full pl-10 pr-4 py-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/40" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by store name, URL, email, or notes..."
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-900/60 border border-slate-700 rounded-xl text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+              />
             </div>
-            <button onClick={() => setSearch("")} className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm text-slate-300">Clear</button>
+            <button onClick={() => setSearch("")} className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm text-slate-300">
+              Clear
+            </button>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => setShowImport(!showImport)} className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-xl text-sm flex items-center gap-2"><IconUpload className="w-4 h-4" /> Import CSV</button>
-            <button onClick={downloadCSV} disabled={filteredLeads.length===0} className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm disabled:opacity-50 flex items-center gap-2"><IconDownload className="w-4 h-4" /> Export</button>
+            <button onClick={() => setShowImport(!showImport)} className="px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-xl text-sm flex items-center gap-2">
+              <IconUpload className="w-4 h-4" /> Import CSV
+            </button>
+            <button onClick={downloadCSV} disabled={filteredLeads.length === 0} className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-sm disabled:opacity-50 flex items-center gap-2">
+              <IconDownload className="w-4 h-4" /> Export
+            </button>
           </div>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5"><div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Total Leads</div><div className="text-2xl font-bold text-white">{stats.total}</div></div>
-          <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5"><div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Valid Emails</div><div className="text-2xl font-bold text-emerald-400">{stats.validEmails}</div></div>
-          <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5"><div className="text-xs text-slate-500 uppercase tracking-wider mb-1">High Quality</div><div className="text-2xl font-bold text-violet-400">{stats.highQuality}</div></div>
-          <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5"><div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Uncontacted</div><div className="text-2xl font-bold text-amber-400">{stats.uncontacted}</div></div>
+          <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5">
+            <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Total Leads</div>
+            <div className="text-2xl font-bold text-white">{stats.total}</div>
+          </div>
+          <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5">
+            <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Valid Emails</div>
+            <div className="text-2xl font-bold text-emerald-400">{stats.validEmails}</div>
+          </div>
+          <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5">
+            <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">High Quality</div>
+            <div className="text-2xl font-bold text-violet-400">{stats.highQuality}</div>
+          </div>
+          <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5">
+            <div className="text-xs text-slate-500 uppercase tracking-wider mb-1">Uncontacted</div>
+            <div className="text-2xl font-bold text-amber-400">{stats.uncontacted}</div>
+          </div>
         </div>
 
         {/* Import Panel */}
@@ -458,66 +575,160 @@ export default function LeadsPage() {
           <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6 mb-8">
             <div className="flex items-start gap-3 mb-4 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10">
               <IconAlert className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-              <div><p className="text-sm text-amber-400 font-medium">File Size Limit: 4MB</p><p className="text-xs text-slate-400">Upload CSV with columns: store_name, store_url, email, etc.</p></div>
+              <div>
+                <p className="text-sm text-amber-400 font-medium">File Size Limit: 4MB</p>
+                <p className="text-xs text-slate-400">Upload CSV with columns: store_name, store_url, email, etc.</p>
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-slate-500 uppercase tracking-wider mb-2 block">Upload CSV</label>
-                <input type="file" accept=".csv" onChange={handleCSVUpload} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-300 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-violet-600 file:text-white file:text-xs file:font-semibold" />
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleCSVUpload}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-300 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-violet-600 file:text-white file:text-xs file:font-semibold"
+                />
               </div>
               <div>
                 <label className="text-xs text-slate-500 uppercase tracking-wider mb-2 block">Or Paste CSV</label>
-                <textarea value={importText} onChange={e => setImportText(e.target.value)} rows={3} placeholder="store_name,store_url,email..." className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder-slate-600 resize-none mb-2" />
-                <button onClick={() => parseAndImport(importText)} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-lg text-xs">Import Pasted Data</button>
+                <textarea
+                  value={importText}
+                  onChange={(e) => setImportText(e.target.value)}
+                  rows={3}
+                  placeholder="store_name,store_url,email..."
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-slate-100 placeholder-slate-600 resize-none mb-2"
+                />
+                <button onClick={() => parseAndImport(importText)} className="px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-lg text-xs">
+                  Import Pasted Data
+                </button>
               </div>
             </div>
-            {importError && <p className="text-rose-400 text-sm mt-3 flex items-center gap-1"><IconAlert className="w-4 h-4" /> {importError}</p>}
+            {importError && (
+              <p className="text-rose-400 text-sm mt-3 flex items-center gap-1">
+                <IconAlert className="w-4 h-4" /> {importError}
+              </p>
+            )}
           </div>
         )}
 
         {/* Bulk Actions */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
-            <button onClick={selectAllOnPage} className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs text-slate-300">Select All on Page</button>
-            <button onClick={selectAllWithEmail} className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs text-slate-300">Select All With Email</button>
-            {selected.size > 0 && <button onClick={deleteSelected} className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 rounded-lg text-xs font-medium flex items-center gap-1.5"><IconTrash className="w-3 h-3" /> Delete ({selected.size})</button>}
+            <button onClick={selectAllOnPage} className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs text-slate-300">
+              Select All on Page
+            </button>
+            <button onClick={selectAllWithEmail} className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs text-slate-300">
+              Select All With Email
+            </button>
+            {selected.size > 0 && (
+              <button onClick={deleteSelected} className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 rounded-lg text-xs font-medium flex items-center gap-1.5">
+                <IconTrash className="w-3 h-3" /> Delete ({selected.size})
+              </button>
+            )}
           </div>
-          <span className="text-xs text-slate-500">Showing {paginatedLeads.length} of {filteredLeads.length} leads · Page {currentPage} of {totalPages}</span>
+          <span className="text-xs text-slate-500">
+            Showing {paginatedLeads.length} of {filteredLeads.length} leads · Page {currentPage} of {totalPages}
+          </span>
         </div>
 
         {/* Lead Cards */}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {Array.from({length:6}).map((_,i) => <div key={i} className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5 animate-pulse"><div className="h-4 bg-slate-800 rounded w-3/4 mb-3"></div><div className="h-3 bg-slate-800 rounded w-1/2 mb-2"></div><div className="h-3 bg-slate-800 rounded w-2/3"></div></div>)}
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5 animate-pulse">
+                <div className="h-4 bg-slate-800 rounded w-3/4 mb-3"></div>
+                <div className="h-3 bg-slate-800 rounded w-1/2 mb-2"></div>
+                <div className="h-3 bg-slate-800 rounded w-2/3"></div>
+              </div>
+            ))}
           </div>
         ) : paginatedLeads.length === 0 ? (
-          <div className="text-center py-20 text-slate-600"><IconGlobe className="w-12 h-12 mx-auto mb-4 opacity-30" /><p className="text-sm mb-2">No leads found.</p><p className="text-xs">Import a CSV, load demo data, or search StoreIndex to get started.</p></div>
+          <div className="text-center py-20 text-slate-600">
+            <IconGlobe className="w-12 h-12 mx-auto mb-4 opacity-30" />
+            <p className="text-sm mb-2">No leads found.</p>
+            <p className="text-xs">Import a CSV, load demo data, or search StoreIndex to get started.</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-8">
-            {paginatedLeads.map(lead => (
-              <div key={lead.id} className={`group rounded-2xl border p-5 transition-all hover:scale-[1.01] ${selected.has(lead.id)?"bg-violet-500/5 border-violet-500/30":"bg-slate-900/40 border-slate-800 hover:border-slate-700"}`}>
+            {paginatedLeads.map((lead) => (
+              <div
+                key={lead.id}
+                className={`group rounded-2xl border p-5 transition-all hover:scale-[1.01] ${
+                  selected.has(lead.id) ? "bg-violet-500/5 border-violet-500/30" : "bg-slate-900/40 border-slate-800 hover:border-slate-700"
+                }`}
+              >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <input type="checkbox" checked={selected.has(lead.id)} onChange={() => toggleSelect(lead.id)} className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-violet-500" />
+                    <input
+                      type="checkbox"
+                      checked={selected.has(lead.id)}
+                      onChange={() => toggleSelect(lead.id)}
+                      className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-violet-500"
+                    />
                     <div>
-                      <a href={lead.store_url} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-white hover:text-violet-400 transition-colors">{lead.store_name}</a>
+                      <a
+                        href={lead.store_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-semibold text-white hover:text-violet-400 transition-colors"
+                      >
+                        {lead.store_name}
+                      </a>
                       <p className="text-xs text-slate-500 truncate max-w-[200px]">{lead.store_url}</p>
                     </div>
                   </div>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${qualityColor(lead.score)}`}>{qualityLabel(lead.score)}</span>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold ${qualityColor(lead.score)}`}>
+                    {qualityLabel(lead.score)}
+                  </span>
                 </div>
                 <div className="space-y-2 mb-4">
-                  {lead.email ? <div className="flex items-center gap-2 text-xs text-emerald-400"><IconCheck className="w-3 h-3" /><span className="truncate">{lead.email}</span></div> : <div className="flex items-center gap-2 text-xs text-slate-500"><IconMail className="w-3 h-3" /><span>No email</span></div>}
-                  {lead.notes && <div className="flex items-center gap-2 text-xs text-slate-400"><IconStar className="w-3 h-3" /><span className="truncate">{lead.notes}</span></div>}
-                  {lead.status && <div className="flex items-center gap-2 text-xs text-slate-400"><span className="capitalize">{lead.status}</span></div>}
+                  {lead.email ? (
+                    <div className="flex items-center gap-2 text-xs text-emerald-400">
+                      <IconCheck className="w-3 h-3" />
+                      <span className="truncate">{lead.email}</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <IconMail className="w-3 h-3" />
+                      <span>No email</span>
+                    </div>
+                  )}
+                  {lead.notes && (
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                      <IconStar className="w-3 h-3" />
+                      <span className="truncate">{lead.notes}</span>
+                    </div>
+                  )}
+                  {lead.status && (
+                    <div className="flex items-center gap-2 text-xs text-slate-400">
+                      <span className="capitalize">{lead.status}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 pt-3 border-t border-slate-800">
                   {lead.email ? (
-                    <a href={`/outreach?email=${encodeURIComponent(lead.email)}&domain=${encodeURIComponent(lead.store_name)}`} className="flex-1 px-3 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"><IconMessage className="w-3 h-3" /> Audit & Outreach</a>
+                    <a
+                      href={`/outreach?email=${encodeURIComponent(lead.email)}&domain=${encodeURIComponent(lead.store_name)}`}
+                      className="flex-1 px-3 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <IconMessage className="w-3 h-3" /> Audit & Outreach
+                    </a>
                   ) : (
-                    <span className="flex-1 px-3 py-2 bg-slate-800 text-slate-500 rounded-lg text-xs font-medium text-center border border-slate-700">No email</span>
+                    <span className="flex-1 px-3 py-2 bg-slate-800 text-slate-500 rounded-lg text-xs font-medium text-center border border-slate-700">
+                      No email
+                    </span>
                   )}
-                  <button onClick={async () => { if(!confirm("Delete this lead?"))return; await supabase.from("leads").delete().eq("id",lead.id); fetchLeads(); }} className="p-2 text-slate-500 hover:text-rose-400 transition-colors"><IconTrash className="w-4 h-4" /></button>
+                  <button
+                    onClick={async () => {
+                      if (!confirm("Delete this lead?")) return;
+                      await supabase.from("leads").delete().eq("id", lead.id);
+                      fetchLeads();
+                    }}
+                    className="p-2 text-slate-500 hover:text-rose-400 transition-colors"
+                  >
+                    <IconTrash className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             ))}
@@ -527,9 +738,31 @@ export default function LeadsPage() {
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-center gap-2">
-            <button onClick={() => setCurrentPage(p => Math.max(1,p-1))} disabled={currentPage===1} className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 disabled:opacity-40"><IconChevronLeft className="w-4 h-4" /></button>
-            {Array.from({length:totalPages},(_,i)=>i+1).map(page => <button key={page} onClick={() => setCurrentPage(page)} className={`w-9 h-9 rounded-lg text-sm font-medium ${currentPage===page?"bg-violet-600 text-white":"bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300"}`}>{page}</button>)}
-            <button onClick={() => setCurrentPage(p => Math.min(totalPages,p+1))} disabled={currentPage===totalPages} className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 disabled:opacity-40"><IconChevronRight className="w-4 h-4" /></button>
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 disabled:opacity-40"
+            >
+              <IconChevronLeft className="w-4 h-4" />
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`w-9 h-9 rounded-lg text-sm font-medium ${
+                  currentPage === page ? "bg-violet-600 text-white" : "bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300"
+                }`}
+              >
+                {page}
+              </button>
+            ))}
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 disabled:opacity-40"
+            >
+              <IconChevronRight className="w-4 h-4" />
+            </button>
           </div>
         )}
       </main>

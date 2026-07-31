@@ -13,23 +13,45 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No stores provided" }, { status: 400 });
     }
 
-    const rows = stores.map((s: any) => ({
-      store_url: s.domain ? `https://${s.domain}` : "",
-      store_name: s.domain || s.shopifyDomain || "Unknown",
-      email: s.email || null,
-      score: s.quality_score || s.score || 70,
-      status: "new",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }));
+    let imported = 0;
+    for (const s of stores) {
+      const storeUrl = s.domain ? `https://${s.domain}` : "";
+      const storeName = s.domain || s.shopifyDomain || "Unknown";
+      const email = s.email || null;
+      const score = s.quality_score || s.score || 70;
 
-    const { error } = await supabase.from("leads").upsert(rows, { onConflict: "store_url" });
+      const { data: existing } = await supabase
+        .from("leads")
+        .select("id")
+        .eq("store_url", storeUrl)
+        .maybeSingle();
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      if (existing) {
+        await supabase
+          .from("leads")
+          .update({
+            store_name: storeName,
+            email,
+            score,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id);
+        imported++;
+      } else {
+        const { error } = await supabase.from("leads").insert({
+          store_url: storeUrl,
+          store_name: storeName,
+          email,
+          score,
+          status: "new",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+        if (!error) imported++;
+      }
     }
 
-    return NextResponse.json({ imported: rows.length });
+    return NextResponse.json({ imported });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || "Import failed" }, { status: 500 });
   }
