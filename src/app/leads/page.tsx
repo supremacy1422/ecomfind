@@ -96,6 +96,15 @@ const IconWorld = ({ className = "w-4 h-4" }: { className?: string }) => (
 const IconStar = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
 );
+const IconX = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+);
+const IconPencil = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+);
+const IconHistory = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+);
 
 interface Lead {
   id: string;
@@ -116,6 +125,16 @@ interface StoreResult {
   country?: string;
   industry?: string;
   createdAt?: string;
+}
+
+interface Activity {
+  id: string;
+  type: "draft" | "sent" | "scheduled" | "opened" | "replied";
+  to: string;
+  subject: string;
+  body: string;
+  scheduledFor?: string;
+  createdAt: string;
 }
 
 export default function LeadsPage() {
@@ -140,6 +159,14 @@ export default function LeadsPage() {
   const [siError, setSiError] = useState("");
   const [siImporting, setSiImporting] = useState(false);
   const [siImportCount, setSiImportCount] = useState(0);
+
+  /* ─── Drawer State ─── */
+  const [drawerLead, setDrawerLead] = useState<Lead | null>(null);
+  const [drawerNotes, setDrawerNotes] = useState("");
+  const [drawerStatus, setDrawerStatus] = useState("new");
+  const [drawerScore, setDrawerScore] = useState<number | undefined>(undefined);
+  const [drawerSaving, setDrawerSaving] = useState(false);
+  const [drawerActivities, setDrawerActivities] = useState<Activity[]>([]);
 
   useEffect(() => {
     fetchLeads();
@@ -387,6 +414,57 @@ export default function LeadsPage() {
     if (score >= 40) return "Fair";
     return "Poor";
   };
+
+  /* ─── Drawer Logic ─── */
+  const openDrawer = (lead: Lead) => {
+    setDrawerLead(lead);
+    setDrawerNotes(lead.notes || "");
+    setDrawerStatus(lead.status || "new");
+    setDrawerScore(lead.score);
+    // Load outreach activities for this lead
+    const saved = localStorage.getItem("ecomfind_outreach_log");
+    let acts: Activity[] = [];
+    if (saved) {
+      try {
+        acts = JSON.parse(saved);
+      } catch {}
+    }
+    const match = lead.email || lead.store_name.toLowerCase();
+    const filtered = acts.filter(
+      (a) =>
+        a.to?.toLowerCase() === match ||
+        a.subject?.toLowerCase().includes(match) ||
+        a.body?.toLowerCase().includes(match)
+    );
+    setDrawerActivities(filtered);
+  };
+
+  const closeDrawer = () => setDrawerLead(null);
+
+  const saveDrawer = async () => {
+    if (!drawerLead) return;
+    setDrawerSaving(true);
+    await supabase
+      .from("leads")
+      .update({
+        notes: drawerNotes,
+        status: drawerStatus,
+        score: drawerScore,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", drawerLead.id);
+    setDrawerSaving(false);
+    closeDrawer();
+    fetchLeads();
+  };
+
+  const statusOptions = [
+    { value: "new", label: "New", color: "text-slate-400" },
+    { value: "contacted", label: "Contacted", color: "text-amber-400" },
+    { value: "replied", label: "Replied", color: "text-blue-400" },
+    { value: "won", label: "Won", color: "text-emerald-400" },
+    { value: "lost", label: "Lost", color: "text-rose-400" },
+  ];
 
   return (
     <div className="min-h-screen bg-[#0b0f1f] text-slate-200">
@@ -824,7 +902,8 @@ export default function LeadsPage() {
             {paginatedLeads.map((lead) => (
               <div
                 key={lead.id}
-                className={`group rounded-2xl border p-5 transition-all hover:scale-[1.01] ${
+                onClick={() => openDrawer(lead)}
+                className={`group rounded-2xl border p-5 transition-all hover:scale-[1.01] cursor-pointer ${
                   selected.has(lead.id) ? "bg-violet-500/5 border-violet-500/30" : "bg-slate-900/40 border-slate-800 hover:border-slate-700"
                 }`}
               >
@@ -833,7 +912,10 @@ export default function LeadsPage() {
                     <input
                       type="checkbox"
                       checked={selected.has(lead.id)}
-                      onChange={() => toggleSelect(lead.id)}
+                      onChange={(e) => {
+                        e.stopPropagation();
+                        toggleSelect(lead.id);
+                      }}
                       className="w-4 h-4 rounded border-slate-600 bg-slate-900 text-violet-500"
                     />
                     <div>
@@ -841,6 +923,7 @@ export default function LeadsPage() {
                         href={lead.store_url}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
                         className="text-sm font-semibold text-white hover:text-violet-400 transition-colors"
                       >
                         {lead.store_name}
@@ -880,6 +963,7 @@ export default function LeadsPage() {
                   {lead.email ? (
                     <a
                       href={`/outreach?email=${encodeURIComponent(lead.email)}&domain=${encodeURIComponent(lead.store_name)}`}
+                      onClick={(e) => e.stopPropagation()}
                       className="flex-1 px-3 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
                     >
                       <IconMessage className="w-3 h-3" /> Audit & Outreach
@@ -890,10 +974,10 @@ export default function LeadsPage() {
                     </span>
                   )}
                   <button
-                    onClick={async () => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       if (!confirm("Delete this lead?")) return;
-                      await supabase.from("leads").delete().eq("id", lead.id);
-                      fetchLeads();
+                      supabase.from("leads").delete().eq("id", lead.id).then(() => fetchLeads());
                     }}
                     className="p-2 text-slate-500 hover:text-rose-400 transition-colors"
                   >
@@ -936,6 +1020,159 @@ export default function LeadsPage() {
           </div>
         )}
       </main>
+
+      {/* ─── Lead Detail Drawer ─── */}
+      {drawerLead && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
+            onClick={closeDrawer}
+          />
+          {/* Drawer */}
+          <div className="fixed top-0 right-0 h-full w-full sm:w-[420px] bg-[#0f1429] border-l border-slate-800 z-50 shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <IconPencil className="w-4 h-4 text-violet-400" />
+                <h2 className="text-sm font-bold text-white">Lead Details</h2>
+              </div>
+              <button onClick={closeDrawer} className="p-1.5 rounded-lg hover:bg-slate-800 text-slate-400 transition-colors">
+                <IconX className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-6">
+              {/* Store Info */}
+              <div>
+                <a
+                  href={drawerLead.store_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-lg font-bold text-white hover:text-violet-400 transition-colors"
+                >
+                  {drawerLead.store_name}
+                </a>
+                <p className="text-xs text-slate-500 mt-1">{drawerLead.store_url}</p>
+                {drawerLead.email && (
+                  <p className="text-xs text-emerald-400 mt-2 flex items-center gap-1.5">
+                    <IconCheck className="w-3 h-3" /> {drawerLead.email}
+                  </p>
+                )}
+              </div>
+
+              {/* Status */}
+              <div>
+                <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5 block">Status</label>
+                <select
+                  value={drawerStatus}
+                  onChange={(e) => setDrawerStatus(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                >
+                  {statusOptions.map((s) => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Score */}
+              <div>
+                <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5 block">Quality Score</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={drawerScore || 0}
+                    onChange={(e) => setDrawerScore(parseInt(e.target.value))}
+                    className="flex-1 accent-violet-500"
+                  />
+                  <span className={`text-sm font-bold w-12 text-right ${qualityColor(drawerScore).split(" ")[1]}`}>
+                    {drawerScore || 0}
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-600 mt-1">{qualityLabel(drawerScore)}</p>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1.5 block">Notes</label>
+                <textarea
+                  value={drawerNotes}
+                  onChange={(e) => setDrawerNotes(e.target.value)}
+                  rows={4}
+                  placeholder="Add private notes about this lead..."
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                />
+              </div>
+
+              {/* Outreach History */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <IconHistory className="w-4 h-4 text-slate-500" />
+                  <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Outreach History</h3>
+                </div>
+                {drawerActivities.length === 0 ? (
+                  <div className="text-center py-6 rounded-xl bg-slate-950/50 border border-slate-800">
+                    <IconMail className="w-6 h-6 mx-auto mb-2 text-slate-700" />
+                    <p className="text-xs text-slate-600">No outreach yet.</p>
+                    {drawerLead.email && (
+                      <a
+                        href={`/outreach?email=${encodeURIComponent(drawerLead.email)}&domain=${encodeURIComponent(drawerLead.store_name)}`}
+                        className="inline-block mt-2 text-xs text-violet-400 hover:text-violet-300 font-medium"
+                      >
+                        Send first email →
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {drawerActivities.map((a) => (
+                      <div key={a.id} className="p-3 rounded-xl bg-slate-950/50 border border-slate-800">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                            a.type === "sent" ? "text-emerald-400" :
+                            a.type === "scheduled" ? "text-amber-400" :
+                            a.type === "draft" ? "text-slate-400" :
+                            a.type === "opened" ? "text-violet-400" :
+                            "text-blue-400"
+                          }`}>{a.type}</span>
+                          <span className="text-[10px] text-slate-600">
+                            {new Date(a.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-300 font-medium truncate">{a.subject}</p>
+                        {a.scheduledFor && (
+                          <p className="text-[10px] text-amber-400 mt-1">Scheduled: {new Date(a.scheduledFor).toLocaleString()}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-5 border-t border-slate-800 flex items-center gap-3">
+              <button
+                onClick={closeDrawer}
+                className="flex-1 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveDrawer}
+                disabled={drawerSaving}
+                className="flex-1 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                <IconCheck className="w-4 h-4" />
+                {drawerSaving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
