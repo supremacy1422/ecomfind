@@ -170,8 +170,12 @@ function OutreachComposer() {
   const [fromName, setFromName] = useState("");
   const [fromEmail, setFromEmail] = useState("");
   const [sending, setSending] = useState(false);
+  const [smtpConfig, setSmtpConfig] = useState<any>(null);
+  const [showSmtpModal, setShowSmtpModal] = useState(false);
   const [sendStatus, setSendStatus] = useState("");
   const [sending, setSending] = useState(false);
+  const [smtpConfig, setSmtpConfig] = useState<any>(null);
+  const [showSmtpModal, setShowSmtpModal] = useState(false);
   const [scheduleMode, setScheduleMode] = useState(false);
   const [scheduleDate, setScheduleDate] = useState("");
   const [logs, setLogs] = useState<OutreachLog[]>([]);
@@ -585,4 +589,80 @@ export default function OutreachPage() {
       </main>
     </div>
   );
+        {/* ─── SMTP Connect Modal ─── */}
+      {showSmtpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-white mb-2">Connect Your Email</h3>
+            <p className="text-xs text-slate-400 mb-6">We send emails through YOUR account. We never store your password.</p>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-slate-400 font-medium block mb-1">SMTP Host</label>
+                <input id="smtp-host" defaultValue="smtp.gmail.com" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-400 font-medium block mb-1">Port</label>
+                  <input id="smtp-port" defaultValue="465" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 font-medium block mb-1">Secure (SSL)</label>
+                  <select id="smtp-secure" defaultValue="true" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500">
+                    <option value="true">Yes (SSL)</option>
+                    <option value="false">No (TLS/STARTTLS)</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 font-medium block mb-1">Email / Username</label>
+                <input id="smtp-user" type="email" placeholder="you@gmail.com" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 font-medium block mb-1">Password / App Password</label>
+                <input id="smtp-pass" type="password" placeholder="••••••••" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
+                <p className="text-[10px] text-slate-500 mt-1">For Gmail, use an <a href="https://myaccount.google.com/apppasswords" target="_blank" className="text-violet-400 underline">App Password</a>, not your regular password.</p>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 font-medium block mb-1">From Name</label>
+                <input id="smtp-fromName" placeholder="Your Name" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 font-medium block mb-1">From Email</label>
+                <input id="smtp-fromEmail" placeholder="you@gmail.com" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowSmtpModal(false)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const host = (document.getElementById("smtp-host") as HTMLInputElement)?.value;
+                  const port = parseInt((document.getElementById("smtp-port") as HTMLInputElement)?.value);
+                  const secure = (document.getElementById("smtp-secure") as HTMLSelectElement)?.value === "true";
+                  const user = (document.getElementById("smtp-user") as HTMLInputElement)?.value;
+                  const pass = (document.getElementById("smtp-pass") as HTMLInputElement)?.value;
+                  const fromName = (document.getElementById("smtp-fromName") as HTMLInputElement)?.value;
+                  const fromEmail = (document.getElementById("smtp-fromEmail") as HTMLInputElement)?.value;
+                  if (!host || !port || !user || !pass) {
+                    alert("Fill in all required fields");
+                    return;
+                  }
+                  setSmtpConfig({ host, port, secure, user, pass, fromName, fromEmail });
+                  setShowSmtpModal(false);
+                  setSendStatus("✓ Email account connected");
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-sm transition-colors"
+              >
+                Connect & Send
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 }
