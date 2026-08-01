@@ -267,7 +267,7 @@ function OutreachComposer() {
         if (!res.ok) throw new Error(result.error || "Failed to send");
       } catch (err: any) {
         setSending(false);
-        setSendStatus(\`✗ Failed: ${err.message}\`);
+        setSendStatus(`✗ Failed: ${err.message}`);
         return;
       }
       setSending(false);
