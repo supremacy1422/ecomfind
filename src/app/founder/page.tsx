@@ -45,8 +45,8 @@ const stats = [
 ];
 
 const milestones = [
-  { year: "2025", title: "Founded Supremacy Digital Marketing Agency", desc: "Started as a one-person consultancy helping businesses improve their online presence, generate leads, and increase sales through digital marketing." },
-  { year: "2026", title: "Launched First AI-Powered SaaS Platform", desc: "Built and released our first software product focused on helping businesses improve their online visibility, automate processes, and scale faster." },
+  { year: "2020", title: "Founded Supremacy Digital Marketing Agency", desc: "Started as a one-person consultancy helping businesses improve their online presence, generate leads, and increase sales through digital marketing." },
+  { year: "2024", title: "Launched First AI-Powered SaaS Platform", desc: "Built and released our first software product focused on helping businesses improve their online visibility, automate processes, and scale faster." },
   { year: "2026", title: "Expanded Into AI Automation & Software Development", desc: "Grew the team and expanded services into AI automation, custom software development, and digital business solutions for companies worldwide." },
   { year: "Future", title: "Building the Future of Business Technology", desc: "Continuing to develop innovative SaaS products that simplify business operations, reduce manual work, and help entrepreneurs scale with confidence." },
 ];
