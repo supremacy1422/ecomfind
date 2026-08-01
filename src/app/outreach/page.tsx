@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
@@ -51,9 +51,6 @@ const IconTrash = ({ className = "w-4 h-4" }: { className?: string }) => (
 );
 const IconSparkles = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
-);
-const IconChevronDown = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
 );
 const IconCopy = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
@@ -173,9 +170,6 @@ function OutreachComposer() {
   const [smtpConfig, setSmtpConfig] = useState<any>(null);
   const [showSmtpModal, setShowSmtpModal] = useState(false);
   const [sendStatus, setSendStatus] = useState("");
-  const [sending, setSending] = useState(false);
-  const [smtpConfig, setSmtpConfig] = useState<any>(null);
-  const [showSmtpModal, setShowSmtpModal] = useState(false);
   const [scheduleMode, setScheduleMode] = useState(false);
   const [scheduleDate, setScheduleDate] = useState("");
   const [logs, setLogs] = useState<OutreachLog[]>([]);
@@ -220,25 +214,29 @@ function OutreachComposer() {
       setSendStatus("Please fill in recipient, subject, and body.");
       return;
     }
+
+    if (!smtpConfig) {
+      setShowSmtpModal(true);
+      return;
+    }
+
     setSending(true);
     setSendStatus("");
 
     try {
-      const res = await fetch("/api/outreach/send", {
+      const res = await fetch("/api/send-email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           to: recipient,
-          from: fromEmail,
           subject,
           body,
-          domain,
-          scheduledFor: scheduleMode ? scheduleDate : null,
+          smtp: smtpConfig,
         }),
       });
 
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Failed to send");
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Failed to send");
 
       const newLog: OutreachLog = {
         id: Math.random().toString(36).substring(2, 10),
@@ -250,31 +248,9 @@ function OutreachComposer() {
         sentAt: scheduleMode ? undefined : new Date().toISOString(),
         scheduledFor: scheduleMode ? scheduleDate : undefined,
       };
-      // Send via Resend API
-      setSending(true);
-      try {
-        const res = await fetch("/api/send-email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            to: recipientEmail,
-            subject,
-            body: generatedBody,
-            fromName: user?.email?.split("@")[0] || "EcomFind",
-          }),
-        });
-        const result = await res.json();
-        if (!res.ok) throw new Error(result.error || "Failed to send");
-      } catch (err: any) {
-        setSending(false);
-        setSendStatus("X Failed: " + err.message);
-        return;
-      }
-      setSending(false);
 
       persistLogs([newLog, ...logs]);
 
-      // Save to Supabase
       if (user) {
         await supabase.from("outreach_logs").insert({
           user_id: user.id,
@@ -287,13 +263,13 @@ function OutreachComposer() {
         });
       }
 
-      setSendStatus(scheduleMode ? "✓ Email scheduled" : "✓ Email sent successfully");
+      setSendStatus(scheduleMode ? "OK Email scheduled" : "OK Email sent successfully");
       if (!scheduleMode) {
         setSubject("");
         setBody("");
       }
     } catch (err: any) {
-      setSendStatus(`Error: ${err.message}`);
+      setSendStatus("Error: " + err.message);
     } finally {
       setSending(false);
       setTimeout(() => setSendStatus(""), 4000);
@@ -429,11 +405,26 @@ function OutreachComposer() {
             )}
           </div>
 
+          {/* SMTP Status */}
+          {!smtpConfig ? (
+            <button
+              onClick={() => setShowSmtpModal(true)}
+              className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-sm transition-colors mb-4"
+            >
+              Connect Your Email Account to Send
+            </button>
+          ) : (
+            <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 mb-4">
+              <span className="text-xs text-emerald-400">Connected: {smtpConfig.fromEmail || smtpConfig.user}</span>
+              <button onClick={() => setShowSmtpModal(true)} className="text-xs text-emerald-400 underline">Change</button>
+            </div>
+          )}
+
           {/* Actions */}
           <div className="flex items-center gap-3">
             <button
               onClick={handleSend}
-              disabled={sending}
+              disabled={sending || !recipient || !smtpConfig}
               className="flex-1 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-semibold rounded-lg text-sm flex items-center justify-center gap-2"
             >
               {sending ? (
@@ -446,7 +437,7 @@ function OutreachComposer() {
           </div>
 
           {sendStatus && (
-            <p className={`mt-3 text-sm ${sendStatus.includes("✓") ? "text-emerald-400" : "text-rose-400"}`}>
+            <p className={`mt-3 text-sm ${sendStatus.startsWith("OK") ? "text-emerald-400" : "text-rose-400"}`}>
               {sendStatus}
             </p>
           )}
@@ -521,6 +512,83 @@ function OutreachComposer() {
           )}
         </div>
       </div>
+
+      {/* ─── SMTP Connect Modal ─── */}
+      {showSmtpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-white mb-2">Connect Your Email</h3>
+            <p className="text-xs text-slate-400 mb-6">We send emails through YOUR account. We never store your password.</p>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-slate-400 font-medium block mb-1">SMTP Host</label>
+                <input id="smtp-host" defaultValue="smtp.gmail.com" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-400 font-medium block mb-1">Port</label>
+                  <input id="smtp-port" defaultValue="465" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 font-medium block mb-1">Secure (SSL)</label>
+                  <select id="smtp-secure" defaultValue="true" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500">
+                    <option value="true">Yes (SSL)</option>
+                    <option value="false">No (TLS)</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 font-medium block mb-1">Email / Username</label>
+                <input id="smtp-user" type="email" placeholder="you@gmail.com" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 font-medium block mb-1">App Password</label>
+                <input id="smtp-pass" type="password" placeholder="16-character code" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
+                <p className="text-[10px] text-slate-500 mt-1">For Gmail, use an <a href="https://myaccount.google.com/apppasswords" target="_blank" className="text-violet-400 underline">App Password</a>, not your regular password.</p>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 font-medium block mb-1">From Name</label>
+                <input id="smtp-fromName" placeholder="Your Name" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 font-medium block mb-1">From Email</label>
+                <input id="smtp-fromEmail" placeholder="you@gmail.com" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowSmtpModal(false)}
+                className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const host = (document.getElementById("smtp-host") as HTMLInputElement)?.value;
+                  const port = parseInt((document.getElementById("smtp-port") as HTMLInputElement)?.value);
+                  const secure = (document.getElementById("smtp-secure") as HTMLSelectElement)?.value === "true";
+                  const user = (document.getElementById("smtp-user") as HTMLInputElement)?.value;
+                  const pass = (document.getElementById("smtp-pass") as HTMLInputElement)?.value;
+                  const fromName = (document.getElementById("smtp-fromName") as HTMLInputElement)?.value;
+                  const fromEmail = (document.getElementById("smtp-fromEmail") as HTMLInputElement)?.value;
+                  if (!host || !port || !user || !pass) {
+                    alert("Fill in all required fields");
+                    return;
+                  }
+                  setSmtpConfig({ host, port, secure, user, pass, fromName, fromEmail });
+                  setShowSmtpModal(false);
+                  setSendStatus("OK Email account connected");
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-sm transition-colors"
+              >
+                Connect
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -589,80 +657,4 @@ export default function OutreachPage() {
       </main>
     </div>
   );
-        {/* ─── SMTP Connect Modal ─── */}
-      {showSmtpModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 p-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-white mb-2">Connect Your Email</h3>
-            <p className="text-xs text-slate-400 mb-6">We send emails through YOUR account. We never store your password.</p>
-            
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-slate-400 font-medium block mb-1">SMTP Host</label>
-                <input id="smtp-host" defaultValue="smtp.gmail.com" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-slate-400 font-medium block mb-1">Port</label>
-                  <input id="smtp-port" defaultValue="465" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-400 font-medium block mb-1">Secure (SSL)</label>
-                  <select id="smtp-secure" defaultValue="true" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500">
-                    <option value="true">Yes (SSL)</option>
-                    <option value="false">No (TLS/STARTTLS)</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 font-medium block mb-1">Email / Username</label>
-                <input id="smtp-user" type="email" placeholder="you@gmail.com" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 font-medium block mb-1">Password / App Password</label>
-                <input id="smtp-pass" type="password" placeholder="••••••••" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
-                <p className="text-[10px] text-slate-500 mt-1">For Gmail, use an <a href="https://myaccount.google.com/apppasswords" target="_blank" className="text-violet-400 underline">App Password</a>, not your regular password.</p>
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 font-medium block mb-1">From Name</label>
-                <input id="smtp-fromName" placeholder="Your Name" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 font-medium block mb-1">From Email</label>
-                <input id="smtp-fromEmail" placeholder="you@gmail.com" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowSmtpModal(false)}
-                className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-sm transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  const host = (document.getElementById("smtp-host") as HTMLInputElement)?.value;
-                  const port = parseInt((document.getElementById("smtp-port") as HTMLInputElement)?.value);
-                  const secure = (document.getElementById("smtp-secure") as HTMLSelectElement)?.value === "true";
-                  const user = (document.getElementById("smtp-user") as HTMLInputElement)?.value;
-                  const pass = (document.getElementById("smtp-pass") as HTMLInputElement)?.value;
-                  const fromName = (document.getElementById("smtp-fromName") as HTMLInputElement)?.value;
-                  const fromEmail = (document.getElementById("smtp-fromEmail") as HTMLInputElement)?.value;
-                  if (!host || !port || !user || !pass) {
-                    alert("Fill in all required fields");
-                    return;
-                  }
-                  setSmtpConfig({ host, port, secure, user, pass, fromName, fromEmail });
-                  setShowSmtpModal(false);
-                  setSendStatus("✓ Email account connected");
-                }}
-                className="flex-1 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-sm transition-colors"
-              >
-                Connect & Send
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 }
