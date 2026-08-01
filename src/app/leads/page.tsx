@@ -759,7 +759,30 @@ export default function LeadsPage() {
                         {s.country} {s.industry && `· ${s.industry}`} {s.createdAt && `· Est. ${new Date(s.createdAt).getFullYear()}`} {s.email && `· ${s.email}`}
                       </p>
                     </div>
-                    {s.email && <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">Has Email</span>}
+                    <div className="flex items-center gap-2 shrink-0">
+                      {s.email && <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Has Email</span>}
+                      <button
+                        onClick={async () => {
+                          const { data: { session } } = await supabase.auth.getSession();
+                          if (!session?.user) { alert("Sign in to save leads"); return; }
+                          const { error } = await supabase.from("saved_leads").insert({
+                            user_id: session.user.id,
+                            domain: s.domain,
+                            shopify_domain: s.shopifyDomain || null,
+                            email: s.email || null,
+                            country: s.country || null,
+                            industry: s.industry || null,
+                            products: (s as any).products || null,
+                            score: (s as any).score || null,
+                          });
+                          if (error) alert("Already saved or error");
+                          else alert("Lead saved!");
+                        }}
+                        className="text-[10px] px-2 py-1 rounded bg-violet-600 hover:bg-violet-500 text-white font-medium"
+                      >
+                        Save
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

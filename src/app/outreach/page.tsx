@@ -247,6 +247,19 @@ function OutreachComposer() {
       };
       persistLogs([newLog, ...logs]);
 
+      // Save to Supabase
+      if (user) {
+        await supabase.from("outreach_logs").insert({
+          user_id: user.id,
+          lead_domain: domain || "—",
+          template_type: TEMPLATES[templateKey].name,
+          subject,
+          body,
+          status: scheduleMode ? "scheduled" : "sent",
+          sent_at: scheduleMode ? null : new Date().toISOString(),
+        });
+      }
+
       setSendStatus(scheduleMode ? "✓ Email scheduled" : "✓ Email sent successfully");
       if (!scheduleMode) {
         setSubject("");

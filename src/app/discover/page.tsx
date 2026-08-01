@@ -410,6 +410,8 @@ export default function DiscoverPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [outreachStatus, setOutreachStatus] = useState("");
   const [user, setUser] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState("");
   const reportRef = useRef<HTMLDivElement>(null);
 
   /* ─── Auto-run audit from ?url= query param ─── */
@@ -496,6 +498,31 @@ export default function DiscoverPage() {
     a.click();
     URL.revokeObjectURL(urlObj);
   };
+
+  const saveAudit = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      setSaveMsg("Sign in to save audits");
+      setTimeout(() => setSaveMsg(""), 3000);
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.from("saved_audits").insert({
+      user_id: session.user.id,
+      url: url,
+      domain: data!.domain,
+      score: data!.score,
+      report_json: data,
+    });
+    setSaving(false);
+    if (error) {
+      setSaveMsg("Error saving");
+    } else {
+      setSaveMsg("Saved!");
+    }
+    setTimeout(() => setSaveMsg(""), 3000);
+  };
+
 
   const sendOutreach = async (email: string) => {
     if (!user) {
@@ -868,14 +895,28 @@ export default function DiscoverPage() {
               </div>
             </SectionCard>
 
-            {/* Download Report */}
-            <div className="flex justify-center pb-8">
-              <button
-                onClick={downloadPDF}
-                className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-sm flex items-center gap-2"
-              >
-                <IconDownload className="w-4 h-4" /> Download Executive Report
-              </button>
+            {/* Save + Download */}
+            <div className="flex flex-col items-center gap-3 pb-8">
+              <div className="flex gap-3">
+                <button
+                  onClick={saveAudit}
+                  disabled={saving}
+                  className="px-6 py-3 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-semibold rounded-xl text-sm flex items-center gap-2"
+                >
+                  {saving ? "Saving..." : "Save Audit"}
+                </button>
+                <button
+                  onClick={downloadPDF}
+                  className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl text-sm flex items-center gap-2"
+                >
+                  <IconDownload className="w-4 h-4" /> Download Executive Report
+                </button>
+              </div>
+              {saveMsg && (
+                <span className={`text-sm ${saveMsg.includes("Error") || saveMsg.includes("Sign in") ? "text-rose-400" : "text-emerald-400"}`}>
+                  {saveMsg}
+                </span>
+              )}
             </div>
           </div>
         )}
