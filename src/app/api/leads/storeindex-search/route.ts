@@ -100,9 +100,8 @@ export async function POST(req: NextRequest) {
         minProducts,
         maxProducts,
         fromDate,
-        toDate,
-        safeLimit
-      );
+        toDate
+      ).slice(0, safeLimit);
 
       results = fallback.map((s) => ({
         domain: s.domain,
