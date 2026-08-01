@@ -1,9 +1,7 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -404,7 +402,7 @@ function ScanVisual() {
 /* ─── Main Page ─── */
 export default function DiscoverPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const [urlParam, setUrlParam] = useState<string | null>(null);
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<AuditData | null>(null);
@@ -416,12 +414,12 @@ export default function DiscoverPage() {
 
   /* ─── Auto-run audit from ?url= query param ─── */
   useEffect(() => {
-    const urlParam = searchParams.get("url");
+    setUrlParam(new URLSearchParams(window.location.search).get("url"));
     if (urlParam) {
       setUrl(urlParam);
       runAudit(urlParam);
     }
-  }, [searchParams]);
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem("lastAudit");
