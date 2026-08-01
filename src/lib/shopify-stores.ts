@@ -113,7 +113,7 @@ export const SHOPIFY_STORES: ShopifyStore[] = [
   { domain: "heureka.cz", shopifyDomain: "heureka.myshopify.com", email: "podpora@heureka.cz", countryCode: "CZ", country: "Czech Republic", industry: "Electronics", products: 50000, score: 85, createdAt: "2007-01-01T00:00:00Z" },
 ];
 
-export function searchStores(query: string, countryCode?: string, industry?: string, minProducts?: number, maxProducts?: number, fromDate?: string, toDate?: string) {
+export function searchStores(query: string, countryCode?: string, industry?: string, minProducts?: number, maxProducts?: number, fromDate?: string, toDate?: string, limit?: number) {
   let results = [...SHOPIFY_STORES];
 
   if (query) {
@@ -151,5 +151,8 @@ export function searchStores(query: string, countryCode?: string, industry?: str
     results = results.filter(s => new Date(s.createdAt).getTime() <= to);
   }
 
+    if (limit !== undefined && limit > 0) {
+    results = results.slice(0, limit);
+  }
   return results;
 }
