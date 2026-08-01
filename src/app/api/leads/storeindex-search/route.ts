@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     let results: any[] = [];
     let usedFallback = true;
 
-    /* ─── Try StoreIndex API first ─── */
+    /* Try StoreIndex API first */
     if (apiKey) {
       try {
         const filters: any = {};
@@ -76,9 +76,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    /* ─── Fallback to curated database ─── */
+    /* Fallback to curated database */
     if (usedFallback) {
-      // Build date range from year/month/day inputs
       let fromDate: string | undefined;
       let toDate: string | undefined;
 
@@ -95,7 +94,7 @@ export async function POST(req: NextRequest) {
       }
 
       const fallback = searchStores(
-        "", // empty query = match all
+        "",
         country || undefined,
         industry || undefined,
         minProducts,
