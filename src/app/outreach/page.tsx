@@ -267,7 +267,7 @@ function OutreachComposer() {
         if (!res.ok) throw new Error(result.error || "Failed to send");
       } catch (err: any) {
         setSending(false);
-        setSendStatus(`✗ Failed: ${err.message}`);
+        setSendStatus(`X Failed: ${err.message}`);
         return;
       }
       setSending(false);
@@ -287,7 +287,7 @@ function OutreachComposer() {
         });
       }
 
-      setSendStatus(scheduleMode ? "✓ Email scheduled" : "✓ Email sent successfully");
+      setSendStatus(scheduleMode ? "OK Email scheduled" : "OK Email sent successfully");
       if (!scheduleMode) {
         setSubject("");
         setBody("");
@@ -446,7 +446,7 @@ function OutreachComposer() {
           </div>
 
           {sendStatus && (
-            <p className={`mt-3 text-sm ${sendStatus.includes("✓") ? "text-emerald-400" : "text-rose-400"}`}>
+            <p className={`mt-3 text-sm ${sendStatus.includes("OK") ? "text-emerald-400" : "text-rose-400"}`}>
               {sendStatus}
             </p>
           )}
@@ -655,7 +655,7 @@ export default function OutreachPage() {
                   }
                   setSmtpConfig({ host, port, secure, user, pass, fromName, fromEmail });
                   setShowSmtpModal(false);
-                  setSendStatus("✓ Email account connected");
+                  setSendStatus("OK Email account connected");
                 }}
                 className="flex-1 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-sm transition-colors"
               >
