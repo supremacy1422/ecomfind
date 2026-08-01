@@ -171,6 +171,7 @@ function OutreachComposer() {
   const [fromEmail, setFromEmail] = useState("");
   const [sending, setSending] = useState(false);
   const [sendStatus, setSendStatus] = useState("");
+  const [sending, setSending] = useState(false);
   const [scheduleMode, setScheduleMode] = useState(false);
   const [scheduleDate, setScheduleDate] = useState("");
   const [logs, setLogs] = useState<OutreachLog[]>([]);
@@ -245,6 +246,28 @@ function OutreachComposer() {
         sentAt: scheduleMode ? undefined : new Date().toISOString(),
         scheduledFor: scheduleMode ? scheduleDate : undefined,
       };
+      // Send via Resend API
+      setSending(true);
+      try {
+        const res = await fetch("/api/send-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            to: recipientEmail,
+            subject,
+            body: generatedBody,
+            fromName: user?.email?.split("@")[0] || "EcomFind",
+          }),
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || "Failed to send");
+      } catch (err: any) {
+        setSending(false);
+        setSendStatus(\`✗ Failed: \${err.message}\`);
+        return;
+      }
+      setSending(false);
+
       persistLogs([newLog, ...logs]);
 
       // Save to Supabase
