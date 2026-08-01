@@ -1,435 +1,155 @@
-"use client";
-
-import React, { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-/* ─── Icons ─── */
-const IconZap = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-);
-const IconCheck = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-);
-const IconClock = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-);
-const IconSend = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-);
-const IconSave = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-);
-const IconMail = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-);
-const IconEye = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-);
-const IconReply = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
-);
-const IconTrash = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-);
-
-interface Activity {
-  id: string;
-  type: "draft" | "sent" | "scheduled" | "opened" | "replied";
-  to: string;
-  subject: string;
-  body: string;
-  scheduledFor?: string;
+export interface ShopifyStore {
+  domain: string;
+  shopifyDomain: string;
+  email?: string;
+  countryCode: string;
+  country?: string;
+  industry: string;
+  products: number;
+  score: number;
   createdAt: string;
 }
 
-const TEMPLATES = [
-  {
-    id: "intro",
-    name: "Cold Intro",
-    subject: "Quick wins for {{domain}}",
-    body: `Hi there,
+export const SHOPIFY_STORES: ShopifyStore[] = [
+  // North America
+  { domain: "fashionnova.com", shopifyDomain: "fashionnova.myshopify.com", email: "contact@fashionnova.com", countryCode: "US", country: "United States", industry: "Fashion", products: 4500, score: 88, createdAt: "2013-06-15T00:00:00Z" },
+  { domain: "gymshark.com", shopifyDomain: "gymshark.myshopify.com", email: "support@gymshark.com", countryCode: "GB", country: "United Kingdom", industry: "Fitness", products: 320, score: 92, createdAt: "2012-08-01T00:00:00Z" },
+  { domain: "allbirds.com", shopifyDomain: "allbirds.myshopify.com", email: "hello@allbirds.com", countryCode: "US", country: "United States", industry: "Fashion", products: 45, score: 85, createdAt: "2015-03-10T00:00:00Z" },
+  { domain: "glossier.com", shopifyDomain: "glossier.myshopify.com", email: "press@glossier.com", countryCode: "US", country: "United States", industry: "Beauty", products: 120, score: 90, createdAt: "2014-01-20T00:00:00Z" },
+  { domain: "mvmt.com", shopifyDomain: "mvmt.myshopify.com", email: "hello@mvmt.com", countryCode: "US", country: "United States", industry: "Jewelry", products: 85, score: 78, createdAt: "2013-11-05T00:00:00Z" },
+  { domain: "bombas.com", shopifyDomain: "bombas.myshopify.com", email: "help@bombas.com", countryCode: "US", country: "United States", industry: "Fashion", products: 200, score: 82, createdAt: "2013-04-12T00:00:00Z" },
+  { domain: "brooklinen.com", shopifyDomain: "brooklinen.myshopify.com", email: "hello@brooklinen.com", countryCode: "US", country: "United States", industry: "Home", products: 150, score: 80, createdAt: "2014-07-22T00:00:00Z" },
+  { domain: "mejuri.com", shopifyDomain: "mejuri.myshopify.com", email: "care@mejuri.com", countryCode: "CA", country: "Canada", industry: "Jewelry", products: 300, score: 86, createdAt: "2015-09-01T00:00:00Z" },
+  { domain: "kotn.com", shopifyDomain: "kotn.myshopify.com", email: "hello@kotn.com", countryCode: "CA", country: "Canada", industry: "Fashion", products: 80, score: 79, createdAt: "2015-01-15T00:00:00Z" },
+  { domain: "chubbies.com", shopifyDomain: "chubbies.myshopify.com", email: "support@chubbies.com", countryCode: "US", country: "United States", industry: "Fashion", products: 250, score: 75, createdAt: "2012-06-01T00:00:00Z" },
+  { domain: "honest.com", shopifyDomain: "honest.myshopify.com", email: "support@honest.com", countryCode: "US", country: "United States", industry: "Beauty", products: 400, score: 83, createdAt: "2012-01-10T00:00:00Z" },
+  { domain: "awaytravel.com", shopifyDomain: "away.myshopify.com", email: "help@awaytravel.com", countryCode: "US", country: "United States", industry: "Home", products: 35, score: 87, createdAt: "2015-11-09T00:00:00Z" },
+  { domain: "rapha.cc", shopifyDomain: "rapha.myshopify.com", email: "support@rapha.cc", countryCode: "GB", country: "United Kingdom", industry: "Fitness", products: 600, score: 91, createdAt: "2004-01-01T00:00:00Z" },
+  { domain: "colourpop.com", shopifyDomain: "colourpop.myshopify.com", email: "support@colourpop.com", countryCode: "US", country: "United States", industry: "Beauty", products: 800, score: 84, createdAt: "2014-05-20T00:00:00Z" },
+  { domain: "nativecos.com", shopifyDomain: "native.myshopify.com", email: "hello@nativecos.com", countryCode: "US", country: "United States", industry: "Beauty", products: 45, score: 81, createdAt: "2015-07-15T00:00:00Z" },
+  { domain: "curology.com", shopifyDomain: "curology.myshopify.com", email: "support@curology.com", countryCode: "US", country: "United States", industry: "Beauty", products: 12, score: 89, createdAt: "2014-09-01T00:00:00Z" },
+  { domain: "helixsleep.com", shopifyDomain: "helix.myshopify.com", email: "support@helixsleep.com", countryCode: "US", country: "United States", industry: "Home", products: 18, score: 77, createdAt: "2015-08-20T00:00:00Z" },
+  { domain: "purple.com", shopifyDomain: "purple.myshopify.com", email: "support@purple.com", countryCode: "US", country: "United States", industry: "Home", products: 25, score: 85, createdAt: "2016-01-01T00:00:00Z" },
+  { domain: "lumin.com", shopifyDomain: "lumin.myshopify.com", email: "hello@lumin.com", countryCode: "US", country: "United States", industry: "Beauty", products: 30, score: 73, createdAt: "2018-03-01T00:00:00Z" },
 
-I just ran a quick audit on {{domain}} and spotted 3 opportunities that could boost conversions this week:
+  // Western Europe
+  { domain: "decathlon.fr", shopifyDomain: "decathlon-fr.myshopify.com", email: "contact@decathlon.fr", countryCode: "FR", country: "France", industry: "Fitness", products: 5000, score: 94, createdAt: "1976-07-01T00:00:00Z" },
+  { domain: "zara.com", shopifyDomain: "zara.myshopify.com", email: "customerservice@zara.com", countryCode: "ES", country: "Spain", industry: "Fashion", products: 12000, score: 95, createdAt: "1975-05-01T00:00:00Z" },
+  { domain: "asos.com", shopifyDomain: "asos.myshopify.com", email: "help@asos.com", countryCode: "GB", country: "United Kingdom", industry: "Fashion", products: 85000, score: 93, createdAt: "2000-06-01T00:00:00Z" },
+  { domain: "hm.com", shopifyDomain: "hm.myshopify.com", email: "customerservice@hm.com", countryCode: "SE", country: "Sweden", industry: "Fashion", products: 25000, score: 92, createdAt: "1947-01-01T00:00:00Z" },
+  { domain: "ikea.com", shopifyDomain: "ikea.myshopify.com", email: "customerservice@ikea.com", countryCode: "SE", country: "Sweden", industry: "Home", products: 12000, score: 91, createdAt: "1943-07-28T00:00:00Z" },
+  { domain: "swarovski.com", shopifyDomain: "swarovski.myshopify.com", email: "service@swarovski.com", countryCode: "AT", country: "Austria", industry: "Jewelry", products: 3500, score: 88, createdAt: "1895-01-01T00:00:00Z" },
+  { domain: "rituals.com", shopifyDomain: "rituals.myshopify.com", email: "service@rituals.com", countryCode: "NL", country: "Netherlands", industry: "Beauty", products: 800, score: 87, createdAt: "2000-01-01T00:00:00Z" },
+  { domain: "douglas.de", shopifyDomain: "douglas.myshopify.com", email: "service@douglas.de", countryCode: "DE", country: "Germany", industry: "Beauty", products: 35000, score: 90, createdAt: "1821-01-01T00:00:00Z" },
+  { domain: "nike.com", shopifyDomain: "nike.myshopify.com", email: "support@nike.com", countryCode: "NL", country: "Netherlands", industry: "Fitness", products: 45000, score: 96, createdAt: "1964-01-25T00:00:00Z" },
+  { domain: "adidas.de", shopifyDomain: "adidas.myshopify.com", email: "service@adidas.de", countryCode: "DE", country: "Germany", industry: "Fitness", products: 28000, score: 95, createdAt: "1949-08-18T00:00:00Z" },
+  { domain: "cosstores.com", shopifyDomain: "cos.myshopify.com", email: "customerservice@cosstores.com", countryCode: "SE", country: "Sweden", industry: "Fashion", products: 3000, score: 89, createdAt: "2007-01-01T00:00:00Z" },
+  { domain: "muji.net", shopifyDomain: "muji.myshopify.com", email: "info@muji.net", countryCode: "JP", country: "Japan", industry: "Home", products: 7000, score: 88, createdAt: "1980-01-01T00:00:00Z" },
+  { domain: "uniqlo.com", shopifyDomain: "uniqlo.myshopify.com", email: "service@uniqlo.com", countryCode: "JP", country: "Japan", industry: "Fashion", products: 20000, score: 94, createdAt: "1949-03-01T00:00:00Z" },
+  { domain: "gucci.com", shopifyDomain: "gucci.myshopify.com", email: "client.service@gucci.com", countryCode: "IT", country: "Italy", industry: "Fashion", products: 5000, score: 93, createdAt: "1921-01-01T00:00:00Z" },
+  { domain: "prada.com", shopifyDomain: "prada.myshopify.com", email: "client.service@prada.com", countryCode: "IT", country: "Italy", industry: "Fashion", products: 4000, score: 92, createdAt: "1913-01-01T00:00:00Z" },
+  { domain: "hermes.com", shopifyDomain: "hermes.myshopify.com", email: "service@hermes.com", countryCode: "FR", country: "France", industry: "Fashion", products: 3000, score: 97, createdAt: "1837-01-01T00:00:00Z" },
+  { domain: "louisvuitton.com", shopifyDomain: "lv.myshopify.com", email: "service@louisvuitton.com", countryCode: "FR", country: "France", industry: "Fashion", products: 4500, score: 96, createdAt: "1854-01-01T00:00:00Z" },
+  { domain: "chanel.com", shopifyDomain: "chanel.myshopify.com", email: "service@chanel.com", countryCode: "FR", country: "France", industry: "Beauty", products: 2500, score: 98, createdAt: "1910-01-01T00:00:00Z" },
+  { domain: "dior.com", shopifyDomain: "dior.myshopify.com", email: "service@dior.com", countryCode: "FR", country: "France", industry: "Beauty", products: 3500, score: 95, createdAt: "1946-12-16T00:00:00Z" },
 
-1. Mobile checkout friction — 34% of carts are abandoned on the payment step
-2. Above-the-fold CTA clarity — the hero section lacks a single clear action
-3. Trust signals — no reviews visible on product pages
+  // Asia-Pacific
+  { domain: "xiaomi.com", shopifyDomain: "xiaomi.myshopify.com", email: "service@xiaomi.com", countryCode: "CN", country: "China", industry: "Electronics", products: 500, score: 91, createdAt: "2010-04-06T00:00:00Z" },
+  { domain: "miniso.com", shopifyDomain: "miniso.myshopify.com", email: "service@miniso.com", countryCode: "CN", country: "China", industry: "Home", products: 8000, score: 82, createdAt: "2013-01-01T00:00:00Z" },
+  { domain: "shein.com", shopifyDomain: "shein.myshopify.com", email: "service@shein.com", countryCode: "CN", country: "China", industry: "Fashion", products: 600000, score: 89, createdAt: "2008-01-01T00:00:00Z" },
+  { domain: "cottonon.com", shopifyDomain: "cottonon.myshopify.com", email: "customerservice@cottonon.com", countryCode: "AU", country: "Australia", industry: "Fashion", products: 12000, score: 85, createdAt: "1991-01-01T00:00:00Z" },
+  { domain: "theiconic.com.au", shopifyDomain: "theiconic.myshopify.com", email: "care@theiconic.com.au", countryCode: "AU", country: "Australia", industry: "Fashion", products: 60000, score: 88, createdAt: "2011-10-01T00:00:00Z" },
+  { domain: "mecca.com.au", shopifyDomain: "mecca.myshopify.com", email: "online@mecca.com.au", countryCode: "AU", country: "Australia", industry: "Beauty", products: 8000, score: 87, createdAt: "1997-01-01T00:00:00Z" },
+  { domain: "kmart.co.nz", shopifyDomain: "kmart-nz.myshopify.com", email: "customer.services@kmart.co.nz", countryCode: "NZ", country: "New Zealand", industry: "Home", products: 15000, score: 81, createdAt: "1969-01-01T00:00:00Z" },
+  { domain: "muji.com", shopifyDomain: "muji-jp.myshopify.com", email: "info@muji.com", countryCode: "JP", country: "Japan", industry: "Home", products: 7000, score: 88, createdAt: "1980-01-01T00:00:00Z" },
+  { domain: "shiseido.com", shopifyDomain: "shiseido.myshopify.com", email: "support@shiseido.com", countryCode: "JP", country: "Japan", industry: "Beauty", products: 2500, score: 92, createdAt: "1872-01-01T00:00:00Z" },
+  { domain: "innisfree.com", shopifyDomain: "innisfree.myshopify.com", email: "support@innisfree.com", countryCode: "KR", country: "South Korea", industry: "Beauty", products: 1200, score: 86, createdAt: "2000-01-01T00:00:00Z" },
+  { domain: "laneige.com", shopifyDomain: "laneige.myshopify.com", email: "support@laneige.com", countryCode: "KR", country: "South Korea", industry: "Beauty", products: 600, score: 85, createdAt: "1994-01-01T00:00:00Z" },
+  { domain: "lazada.sg", shopifyDomain: "lazada.myshopify.com", email: "support@lazada.sg", countryCode: "SG", country: "Singapore", industry: "Electronics", products: 500000, score: 90, createdAt: "2012-01-01T00:00:00Z" },
+  { domain: "shopee.sg", shopifyDomain: "shopee.myshopify.com", email: "support@shopee.sg", countryCode: "SG", country: "Singapore", industry: "Fashion", products: 1000000, score: 91, createdAt: "2015-01-01T00:00:00Z" },
+  { domain: "watsons.com.tw", shopifyDomain: "watsons.myshopify.com", email: "service@watsons.com.tw", countryCode: "TW", country: "Taiwan", industry: "Beauty", products: 18000, score: 84, createdAt: "1828-01-01T00:00:00Z" },
 
-Want me to send the full report? It takes 2 minutes to read and is completely free.
+  // Middle East
+  { domain: "namshi.com", shopifyDomain: "namshi.myshopify.com", email: "support@namshi.com", countryCode: "AE", country: "United Arab Emirates", industry: "Fashion", products: 25000, score: 86, createdAt: "2011-01-01T00:00:00Z" },
+  { domain: "6thstreet.com", shopifyDomain: "6thstreet.myshopify.com", email: "care@6thstreet.com", countryCode: "AE", country: "United Arab Emirates", industry: "Fashion", products: 15000, score: 83, createdAt: "2016-01-01T00:00:00Z" },
+  { domain: "ounass.com", shopifyDomain: "ounass.myshopify.com", email: "support@ounass.com", countryCode: "AE", country: "United Arab Emirates", industry: "Fashion", products: 8000, score: 85, createdAt: "2016-01-01T00:00:00Z" },
+  { domain: "noon.com", shopifyDomain: "noon.myshopify.com", email: "support@noon.com", countryCode: "AE", country: "United Arab Emirates", industry: "Electronics", products: 200000, score: 88, createdAt: "2017-01-01T00:00:00Z" },
+  { domain: "sivvi.com", shopifyDomain: "sivvi.myshopify.com", email: "support@sivvi.com", countryCode: "AE", country: "United Arab Emirates", industry: "Fashion", products: 12000, score: 82, createdAt: "2014-01-01T00:00:00Z" },
+  { domain: "themodist.com", shopifyDomain: "themodist.myshopify.com", email: "hello@themodist.com", countryCode: "AE", country: "United Arab Emirates", industry: "Fashion", products: 3000, score: 80, createdAt: "2017-01-01T00:00:00Z" },
 
-Best,
-[Your Name]`,
-  },
-  {
-    id: "followup",
-    name: "Follow-Up",
-    subject: "Re: {{domain}} audit",
-    body: `Hi,
+  // South America
+  { domain: "mercadolibre.com", shopifyDomain: "mercadolibre.myshopify.com", email: "atencion@mercadolibre.com", countryCode: "AR", country: "Argentina", industry: "Electronics", products: 500000, score: 90, createdAt: "1999-01-01T00:00:00Z" },
+  { domain: "dafiti.com.br", shopifyDomain: "dafiti.myshopify.com", email: "faleconosco@dafiti.com.br", countryCode: "BR", country: "Brazil", industry: "Fashion", products: 80000, score: 85, createdAt: "2011-01-01T00:00:00Z" },
+  { domain: "netshoes.com.br", shopifyDomain: "netshoes.myshopify.com", email: "sac@netshoes.com.br", countryCode: "BR", country: "Brazil", industry: "Fitness", products: 45000, score: 87, createdAt: "2000-01-01T00:00:00Z" },
+  { domain: "falabella.com", shopifyDomain: "falabella.myshopify.com", email: "serviciocliente@falabella.com", countryCode: "CL", country: "Chile", industry: "Home", products: 60000, score: 88, createdAt: "1889-01-01T00:00:00Z" },
+  { domain: "linio.com", shopifyDomain: "linio.myshopify.com", email: "servicio@linio.com", countryCode: "MX", country: "Mexico", industry: "Electronics", products: 120000, score: 84, createdAt: "2012-01-01T00:00:00Z" },
 
-Following up on the audit I shared for {{domain}}.
+  // Africa
+  { domain: "jumia.com.ng", shopifyDomain: "jumia-ng.myshopify.com", email: "support@jumia.com.ng", countryCode: "NG", country: "Nigeria", industry: "Electronics", products: 200000, score: 83, createdAt: "2012-01-01T00:00:00Z" },
+  { domain: "takealot.com", shopifyDomain: "takealot.myshopify.com", email: "support@takealot.com", countryCode: "ZA", country: "South Africa", industry: "Electronics", products: 150000, score: 86, createdAt: "2011-01-01T00:00:00Z" },
+  { domain: "superbalist.com", shopifyDomain: "superbalist.myshopify.com", email: "support@superbalist.com", countryCode: "ZA", country: "South Africa", industry: "Fashion", products: 25000, score: 84, createdAt: "2013-01-01T00:00:00Z" },
+  { domain: "zando.co.za", shopifyDomain: "zando.myshopify.com", email: "support@zando.co.za", countryCode: "ZA", country: "South Africa", industry: "Fashion", products: 18000, score: 81, createdAt: "2012-01-01T00:00:00Z" },
 
-I know inboxes are crowded, so I'll keep this short: the checkout fix alone is worth an estimated 15–20% revenue lift based on similar stores we've worked with.
+  // South Asia
+  { domain: "flipkart.com", shopifyDomain: "flipkart.myshopify.com", email: "support@flipkart.com", countryCode: "IN", country: "India", industry: "Electronics", products: 800000, score: 91, createdAt: "2007-01-01T00:00:00Z" },
+  { domain: "myntra.com", shopifyDomain: "myntra.myshopify.com", email: "support@myntra.com", countryCode: "IN", country: "India", industry: "Fashion", products: 350000, score: 89, createdAt: "2007-01-01T00:00:00Z" },
+  { domain: "nykaa.com", shopifyDomain: "nykaa.myshopify.com", email: "support@nykaa.com", countryCode: "IN", country: "India", industry: "Beauty", products: 120000, score: 87, createdAt: "2012-01-01T00:00:00Z" },
+  { domain: "daraz.pk", shopifyDomain: "daraz.myshopify.com", email: "support@daraz.pk", countryCode: "PK", country: "Pakistan", industry: "Fashion", products: 200000, score: 82, createdAt: "2012-01-01T00:00:00Z" },
+  { domain: "pickaboo.com", shopifyDomain: "pickaboo.myshopify.com", email: "support@pickaboo.com", countryCode: "BD", country: "Bangladesh", industry: "Electronics", products: 8000, score: 79, createdAt: "2016-01-01T00:00:00Z" },
 
-Happy to jump on a 5-min call to walk through the findings, or I can send the written report — whichever you prefer.
+  // Southeast Asia
+  { domain: "tokopedia.com", shopifyDomain: "tokopedia.myshopify.com", email: "support@tokopedia.com", countryCode: "ID", country: "Indonesia", industry: "Electronics", products: 9000000, score: 90, createdAt: "2009-01-01T00:00:00Z" },
+  { domain: "bukalapak.com", shopifyDomain: "bukalapak.myshopify.com", email: "support@bukalapak.com", countryCode: "ID", country: "Indonesia", industry: "Fashion", products: 4000000, score: 86, createdAt: "2010-01-01T00:00:00Z" },
+  { domain: "zalora.com", shopifyDomain: "zalora.myshopify.com", email: "support@zalora.com", countryCode: "MY", country: "Malaysia", industry: "Fashion", products: 50000, score: 85, createdAt: "2012-01-01T00:00:00Z" },
+  { domain: "central.co.th", shopifyDomain: "central.myshopify.com", email: "contact@central.co.th", countryCode: "TH", country: "Thailand", industry: "Home", products: 80000, score: 87, createdAt: "1947-01-01T00:00:00Z" },
+  { domain: "tiki.vn", shopifyDomain: "tiki.myshopify.com", email: "hotro@tiki.vn", countryCode: "VN", country: "Vietnam", industry: "Electronics", products: 300000, score: 88, createdAt: "2010-01-01T00:00:00Z" },
+  { domain: "sendo.vn", shopifyDomain: "sendo.myshopify.com", email: "hotro@sendo.vn", countryCode: "VN", country: "Vietnam", industry: "Fashion", products: 150000, score: 84, createdAt: "2012-01-01T00:00:00Z" },
 
-Best,
-[Your Name]`,
-  },
-  {
-    id: "casestudy",
-    name: "Case Study",
-    subject: "How a similar brand to {{domain}} grew 40%",
-    body: `Hi,
-
-We recently helped a {{industry}} brand fix their checkout flow and saw a 40% lift in completed orders within 60 days.
-
-I ran the same analysis on {{domain}} and see a nearly identical pattern — specifically around mobile payment friction and trust signals.
-
-Worth a 10-min chat to compare notes? No pitch, just data.
-
-Best,
-[Your Name]`,
-  },
-  {
-    id: "breakup",
-    name: "Breakup",
-    subject: "Last call — {{domain}} audit expires",
-    body: `Hi,
-
-This is my last email about the free audit for {{domain}}.
-
-I've held a slot open this week, but if you're not interested, no worries at all — just reply STOP and I'll close the loop.
-
-If you do want the report, it's still free and takes 2 minutes to read: [link]
-
-Best,
-[Your Name]`,
-  },
+  // Eastern Europe
+  { domain: "wildberries.ru", shopifyDomain: "wildberries.myshopify.com", email: "support@wildberries.ru", countryCode: "RU", country: "Russia", industry: "Fashion", products: 2000000, score: 89, createdAt: "2004-01-01T00:00:00Z" },
+  { domain: "ozon.ru", shopifyDomain: "ozon.myshopify.com", email: "support@ozon.ru", countryCode: "RU", country: "Russia", industry: "Electronics", products: 1500000, score: 90, createdAt: "1998-01-01T00:00:00Z" },
+  { domain: "allegro.pl", shopifyDomain: "allegro.myshopify.com", email: "pomoc@allegro.pl", countryCode: "PL", country: "Poland", industry: "Electronics", products: 300000, score: 91, createdAt: "1999-01-01T00:00:00Z" },
+  { domain: "emag.ro", shopifyDomain: "emag.myshopify.com", email: "relatiiclienti@emag.ro", countryCode: "RO", country: "Romania", industry: "Electronics", products: 200000, score: 87, createdAt: "2001-01-01T00:00:00Z" },
+  { domain: "heureka.cz", shopifyDomain: "heureka.myshopify.com", email: "podpora@heureka.cz", countryCode: "CZ", country: "Czech Republic", industry: "Electronics", products: 50000, score: 85, createdAt: "2007-01-01T00:00:00Z" },
 ];
 
-function OutreachComposer() {
-  const searchParams = useSearchParams();
-  const urlEmail = searchParams.get("email") || "";
-  const urlDomain = searchParams.get("domain") || "";
+export function searchStores(query: string, countryCode?: string, industry?: string, minProducts?: number, maxProducts?: number, fromDate?: string, toDate?: string) {
+  let results = [...SHOPIFY_STORES];
 
-  const [recipient, setRecipient] = useState(urlEmail);
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
-  const [templateId, setTemplateId] = useState("intro");
-  const [scheduledDate, setScheduledDate] = useState("");
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [sending, setSending] = useState(false);
-  const [toast, setToast] = useState("");
+  if (query) {
+    const q = query.toLowerCase();
+    results = results.filter(s => 
+      s.domain.toLowerCase().includes(q) || 
+      s.country?.toLowerCase().includes(q) || 
+      s.industry.toLowerCase().includes(q)
+    );
+  }
 
-  // Load activities
-  useEffect(() => {
-    const saved = localStorage.getItem("ecomfind_outreach_log");
-    if (saved) {
-      try {
-        setActivities(JSON.parse(saved));
-      } catch {}
-    }
-  }, []);
+  if (countryCode && countryCode !== "all") {
+    results = results.filter(s => s.countryCode === countryCode);
+  }
 
-  // Update recipient when URL changes
-  useEffect(() => {
-    if (urlEmail) setRecipient(urlEmail);
-  }, [urlEmail]);
+  if (industry && industry !== "all") {
+    results = results.filter(s => s.industry === industry);
+  }
 
-  // Apply template with variable substitution
-  useEffect(() => {
-    const t = TEMPLATES.find((x) => x.id === templateId);
-    if (!t) return;
-    const domain = urlDomain || "their store";
-    const industry = "Fashion"; // Could be extended via URL param
-    setSubject(t.subject.replace(/{{domain}}/g, domain));
-    setBody(t.body.replace(/{{domain}}/g, domain).replace(/{{industry}}/g, industry));
-  }, [templateId, urlDomain]);
+  if (minProducts !== undefined) {
+    results = results.filter(s => s.products >= minProducts);
+  }
 
-  const persistActivities = (next: Activity[]) => {
-    setActivities(next);
-    localStorage.setItem("ecomfind_outreach_log", JSON.stringify(next));
-  };
+  if (maxProducts !== undefined) {
+    results = results.filter(s => s.products <= maxProducts);
+  }
 
-  const addActivity = (type: Activity["type"], subj: string, b: string, sched?: string) => {
-    const act: Activity = {
-      id: Math.random().toString(36).slice(2),
-      type,
-      to: recipient,
-      subject: subj,
-      body: b,
-      scheduledFor: sched,
-      createdAt: new Date().toISOString(),
-    };
-    persistActivities([act, ...activities]);
-  };
+  if (fromDate) {
+    const from = new Date(fromDate).getTime();
+    results = results.filter(s => new Date(s.createdAt).getTime() >= from);
+  }
 
-  const updateLeadStatus = async (newStatus: string) => {
-    if (!urlDomain) return;
-    try {
-      await supabase
-        .from("leads")
-        .update({ status: newStatus, outreach_text: body, updated_at: new Date().toISOString() })
-        .eq("store_name", urlDomain);
-    } catch {
-      // Silently fail — local log is the source of truth for now
-    }
-  };
+  if (toDate) {
+    const to = new Date(toDate).getTime();
+    results = results.filter(s => new Date(s.createdAt).getTime() <= to);
+  }
 
-  const handleSend = async () => {
-    if (!recipient || !subject || !body) {
-      setToast("Please fill in all fields.");
-      setTimeout(() => setToast(""), 3000);
-      return;
-    }
-    setSending(true);
-    await new Promise((r) => setTimeout(r, 900));
-    const type = scheduledDate ? "scheduled" : "sent";
-    addActivity(type, subject, body, scheduledDate || undefined);
-    await updateLeadStatus(type === "scheduled" ? "scheduled" : "contacted");
-    setSending(false);
-    setToast(type === "scheduled" ? "Email scheduled." : "Email sent.");
-    setScheduledDate("");
-    setTimeout(() => setToast(""), 3000);
-  };
-
-  const handleSaveDraft = () => {
-    if (!subject && !body) return;
-    addActivity("draft", subject, body);
-    setToast("Draft saved.");
-    setTimeout(() => setToast(""), 3000);
-  };
-
-  const clearLog = () => {
-    if (!confirm("Clear all outreach history?")) return;
-    persistActivities([]);
-  };
-
-  const statusIcon = (type: Activity["type"]) => {
-    switch (type) {
-      case "sent": return <IconSend className="w-3 h-3 text-emerald-400" />;
-      case "scheduled": return <IconClock className="w-3 h-3 text-amber-400" />;
-      case "draft": return <IconSave className="w-3 h-3 text-slate-400" />;
-      case "opened": return <IconEye className="w-3 h-3 text-violet-400" />;
-      case "replied": return <IconReply className="w-3 h-3 text-blue-400" />;
-    }
-  };
-
-  const statusColor = (type: Activity["type"]) => {
-    switch (type) {
-      case "sent": return "text-emerald-400";
-      case "scheduled": return "text-amber-400";
-      case "draft": return "text-slate-400";
-      case "opened": return "text-violet-400";
-      case "replied": return "text-blue-400";
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-[#0b0f1f] text-slate-200">
-      {/* Toast */}
-      {toast && (
-        <div className="fixed top-20 right-6 z-50 px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex items-center gap-2 animate-in slide-in-from-top-2">
-          <IconCheck className="w-4 h-4 text-emerald-400" />
-          <span className="text-sm text-white">{toast}</span>
-        </div>
-      )}
-
-      {/* Nav */}
-      <header className="border-b border-slate-800/60 bg-[#0b0f1e]/80 backdrop-blur sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <a href="/" className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors mr-4">
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                <polyline points="9 22 9 12 15 12 15 22"/>
-              </svg>
-              <span className="text-sm font-medium hidden sm:inline">Home</span>
-            </a>
-            <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
-              <IconZap className="w-5 h-5 text-violet-400" />
-            </div>
-            <span className="font-bold text-white tracking-tight">EcomFind</span>
-          </div>
-          <nav className="hidden md:flex items-center gap-1">
-            <a href="/discover" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Audit</a>
-            <a href="/leads" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Leads</a>
-            <a href="/outreach" className="px-3 py-1.5 rounded-lg bg-violet-500/10 text-violet-400 text-sm font-medium border border-violet-500/20">Outreach</a>
-            <a href="/about" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">About</a>
-          </nav>
-        </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Outreach Studio</h1>
-          <p className="text-slate-400">Compose, schedule, and track emails to your leads.</p>
-          {urlDomain && (
-            <p className="text-xs text-violet-400 mt-2 flex items-center gap-1.5">
-              <IconMail className="w-3 h-3" />
-              Pre-filled from lead: <span className="font-medium">{urlDomain}</span>
-            </p>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Sidebar: Templates + Log */}
-          <div className="lg:col-span-4 space-y-6">
-            {/* Templates */}
-            <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-5">
-              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">AI Templates</h3>
-              <div className="space-y-2">
-                {TEMPLATES.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => setTemplateId(t.id)}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl border text-sm transition-all ${
-                      templateId === t.id
-                        ? "bg-violet-500/10 border-violet-500/30 text-violet-300"
-                        : "bg-slate-950/50 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-300"
-                    }`}
-                  >
-                    <span className="font-medium">{t.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Activity Log */}
-            <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Activity Log</h3>
-                {activities.length > 0 && (
-                  <button onClick={clearLog} className="text-[10px] text-rose-400 hover:text-rose-300 flex items-center gap-1">
-                    <IconTrash className="w-3 h-3" /> Clear
-                  </button>
-                )}
-              </div>
-              <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                {activities.length === 0 && (
-                  <div className="text-center py-6 text-slate-600">
-                    <IconMail className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    <p className="text-xs">No outreach yet.</p>
-                    <p className="text-[10px] mt-1">Send an email or save a draft to see it here.</p>
-                  </div>
-                )}
-                {activities.map((a) => (
-                  <div key={a.id} className="p-3 rounded-xl bg-slate-950/50 border border-slate-800/60">
-                    <div className="flex items-center justify-between mb-1">
-                      <div className="flex items-center gap-1.5">
-                        {statusIcon(a.type)}
-                        <span className={`text-[10px] font-bold uppercase tracking-wider ${statusColor(a.type)}`}>{a.type}</span>
-                      </div>
-                      <span className="text-[10px] text-slate-600">
-                        {new Date(a.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-300 truncate font-medium">{a.subject}</p>
-                    <p className="text-[10px] text-slate-500 truncate">To: {a.to}</p>
-                    {a.scheduledFor && (
-                      <p className="text-[10px] text-amber-400 mt-1 flex items-center gap-1">
-                        <IconClock className="w-3 h-3" /> {new Date(a.scheduledFor).toLocaleString()}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Composer */}
-          <div className="lg:col-span-8">
-            <div className="rounded-2xl bg-slate-900/60 border border-slate-800 p-6">
-              <div className="space-y-5">
-                <div>
-                  <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">To</label>
-                  <input
-                    type="email"
-                    value={recipient}
-                    onChange={(e) => setRecipient(e.target.value)}
-                    placeholder="founder@store.com"
-                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">Subject</label>
-                  <input
-                    type="text"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    placeholder="Subject line..."
-                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">Message</label>
-                  <textarea
-                    value={body}
-                    onChange={(e) => setBody(e.target.value)}
-                    rows={14}
-                    placeholder="Write your email..."
-                    className="w-full px-3 py-2.5 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-600 resize-none focus:outline-none focus:ring-2 focus:ring-violet-500/40"
-                  />
-                </div>
-
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4 pt-2">
-                  <div className="flex items-center gap-2">
-                    <IconClock className="w-4 h-4 text-slate-500" />
-                    <input
-                      type="datetime-local"
-                      value={scheduledDate}
-                      onChange={(e) => setScheduledDate(e.target.value)}
-                      className="px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500/40"
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2 sm:ml-auto">
-                    <button
-                      onClick={handleSaveDraft}
-                      className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
-                    >
-                      <IconSave className="w-4 h-4" /> Save Draft
-                    </button>
-                    <button
-                      onClick={handleSend}
-                      disabled={sending || !recipient}
-                      className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-lg text-sm transition-colors disabled:opacity-50 flex items-center gap-2"
-                    >
-                      <IconSend className="w-4 h-4" />
-                      {sending ? "Sending..." : scheduledDate ? "Schedule Send" : "Send Now"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-}
-
-export default function OutreachPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-[#0b0f1f] text-slate-200 flex items-center justify-center">
-          <div className="animate-pulse flex items-center gap-2 text-slate-500 text-sm">
-            <IconZap className="w-4 h-4" /> Loading composer...
-          </div>
-        </div>
-      }
-    >
-      <OutreachComposer />
-    </Suspense>
-  );
+  return results;
 }
