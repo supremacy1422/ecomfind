@@ -328,62 +328,136 @@ export default function LeadsPage() {
   };
 
   const parseAndImport = async (text: string) => {
-    setImportError("");
-    const parsed = parseCSV(text);
-    if (parsed.length < 2) {
-      setImportError("CSV needs header + data row.");
-      return;
-    }
-    const headers = parsed[0].map((h) => h.toLowerCase().trim().replace(/^["']|["']$/g, ""));
-    const getCol = (names: string[]) => {
-      for (const n of names) {
-        const i = headers.indexOf(n.toLowerCase());
-        if (i !== -1) return i;
-      }
-      return -1;
-    };
-    const domainIdx = getCol(["domain", "store_name", "store name", "name", "url", "website", "site", "store_url"]);
-    const emailIdx = getCol(["email", "e-mail", "contact_email", "contact email"]);
-    if (domainIdx === -1 && emailIdx === -1) {
-      setImportError("Need domain/store_name or email column.");
-      return;
-    }
+  setImportError("");
+  const parsed = parseCSV(text);
+  if (parsed.length < 2) {
+    setImportError("CSV needs at least a header row + one data row. Make sure your file has column names on the first line.");
+    return;
+  }
 
-    let imported = 0;
-    for (let i = 1; i < parsed.length; i++) {
-      const vals = parsed[i];
-      const domain = domainIdx !== -1 ? vals[domainIdx]?.trim() : "";
-      const email = emailIdx !== -1 ? vals[emailIdx]?.trim() : "";
-      if (!domain && !email) continue;
-
-      const row = {
-        store_name: domain || "Unknown",
-        store_url: domain ? `https://${domain}` : "",
-        email: email || null,
-        status: "new",
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      const { data: existing } = await supabase.from("leads").select("id").eq("store_url", row.store_url).maybeSingle();
-      if (existing) {
-        await supabase.from("leads").update({ ...row, updated_at: new Date().toISOString() }).eq("id", existing.id);
-        imported++;
-      } else {
-        const { error } = await supabase.from("leads").insert(row);
-        if (!error) imported++;
-      }
+  const headers = parsed[0].map((h) => h.toLowerCase().trim().replace(/^["']|["']$/g, ""));
+  const getCol = (names: string[]) => {
+    for (const n of names) {
+      const i = headers.indexOf(n.toLowerCase());
+      if (i !== -1) return i;
     }
-    if (imported === 0) {
-      setImportError("No valid rows imported.");
-      return;
-    }
-    setShowImport(false);
-    setImportText("");
-    fetchLeads();
+    return -1;
   };
 
-  const downloadCSV = () => {
+  const domainIdx = getCol(["domain", "store_name", "store name", "name", "url", "website", "site", "store_url"]);
+  const emailIdx = getCol([
+    "validatedemail1", "validatedemail2", "validatedemail3",
+    "email1", "email2", "email3",
+    "validatedemailfromurl1", "validatedemailfromurl2", "validatedemailfromurl3",
+    "emailfromurl1", "emailfromurl2", "emailfromurl3",
+    "email", "e-mail", "contact_email", "contact email"
+  ]);
+  const countryIdx = getCol(["language", "country"]);
+  const industryIdx = getCol(["maincategories", "main_categories", "category", "industry"]);
+  const nameIdx = getCol(["name", "store_name", "store name", "storename", "domain"]);
+  const activityIdx = getCol(["productschangeactivity", "activity"]);
+  const phone1Idx = getCol(["phone1"]);
+  const phone2Idx = getCol(["phone2"]);
+  const fbIdx = getCol(["facebook"]);
+  const igIdx = getCol(["instagram"]);
+  const twIdx = getCol(["twitter"]);
+  const ytIdx = getCol(["youtube"]);
+  const ttIdx = getCol(["tiktok"]);
+  const ptIdx = getCol(["pinterest"]);
+  const liIdx = getCol(["linkedin"]);
+  const addrIdx = getCol(["address"]);
+  const addrPageIdx = getCol(["addressfrompage"]);
+
+  if (domainIdx === -1 && emailIdx === -1) {
+    setImportError("Need domain/store_name or email column.");
+    return;
+  }
+
+  let imported = 0;
+  for (let i = 1; i < parsed.length; i++) {
+    const vals = parsed[i];
+    const domain = domainIdx !== -1 ? vals[domainIdx]?.trim() : "";
+    let email = emailIdx !== -1 ? vals[emailIdx]?.trim() : "";
+    const country = countryIdx !== -1 ? vals[countryIdx]?.trim() : "";
+    let industry = industryIdx !== -1 ? vals[industryIdx]?.trim() : "";
+    const name = nameIdx !== -1 ? vals[nameIdx]?.trim() : "";
+    const activity = activityIdx !== -1 ? vals[activityIdx]?.trim() : "";
+    const phone1 = phone1Idx !== -1 ? vals[phone1Idx]?.trim() : "";
+    const phone2 = phone2Idx !== -1 ? vals[phone2Idx]?.trim() : "";
+
+    // Parse mainCategories JSON array
+    if (industry && industry.startsWith("[")) {
+      try {
+        const parsedCats = JSON.parse(industry.replace(/""/g, '"'));
+        if (Array.isArray(parsedCats) && parsedCats.length > 0) {
+          industry = parsedCats[0];
+        }
+      } catch {
+        // keep raw
+      }
+    }
+
+    if (!domain && !email) continue;
+
+    const storeName = name || domain || "Unknown";
+    const storeUrl = domain ? (domain.startsWith("http") ? domain : `https://${domain}`) : "";
+
+    // Build rich notes
+    const extraNotes: string[] = [];
+    if (country) extraNotes.push(`Country: ${country}`);
+    if (industry) extraNotes.push(`Industry: ${industry}`);
+    if (activity) extraNotes.push(`Activity: ${activity}`);
+    if (phone1) extraNotes.push(`Phone: ${phone1}`);
+    if (phone2) extraNotes.push(`Phone 2: ${phone2}`);
+    if (fbIdx !== -1 && vals[fbIdx]?.trim()) extraNotes.push(`Facebook: ${vals[fbIdx].trim()}`);
+    if (igIdx !== -1 && vals[igIdx]?.trim()) extraNotes.push(`Instagram: ${vals[igIdx].trim()}`);
+    if (twIdx !== -1 && vals[twIdx]?.trim()) extraNotes.push(`Twitter: ${vals[twIdx].trim()}`);
+    if (ytIdx !== -1 && vals[ytIdx]?.trim()) extraNotes.push(`YouTube: ${vals[ytIdx].trim()}`);
+    if (ttIdx !== -1 && vals[ttIdx]?.trim()) extraNotes.push(`TikTok: ${vals[ttIdx].trim()}`);
+    if (ptIdx !== -1 && vals[ptIdx]?.trim()) extraNotes.push(`Pinterest: ${vals[ptIdx].trim()}`);
+    if (liIdx !== -1 && vals[liIdx]?.trim()) extraNotes.push(`LinkedIn: ${vals[liIdx].trim()}`);
+    if (addrIdx !== -1 && vals[addrIdx]?.trim()) extraNotes.push(`Address: ${vals[addrIdx].trim()}`);
+    if (addrPageIdx !== -1 && vals[addrPageIdx]?.trim()) extraNotes.push(`Address Page: ${vals[addrPageIdx].trim()}`);
+
+    const row: any = {
+      store_name: storeName,
+      store_url: storeUrl,
+      email: email || null,
+      status: "new",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    // Uncomment these two lines if your Supabase table has country & industry columns:
+    // if (country) row.country = country;
+    // if (industry) row.industry = industry;
+
+    const { data: existing } = await supabase.from("leads").select("id,notes").eq("store_url", row.store_url).maybeSingle();
+    if (existing) {
+      const existingNotes = existing.notes || "";
+      const newNoteLines = extraNotes.filter((line) => !existingNotes.includes(line));
+      const mergedNotes = newNoteLines.length > 0
+        ? [existingNotes, ...newNoteLines].filter(Boolean).join("\n")
+        : existingNotes;
+      await supabase.from("leads").update({ ...row, notes: mergedNotes, updated_at: new Date().toISOString() }).eq("id", existing.id);
+      imported++;
+    } else {
+      if (extraNotes.length > 0) row.notes = extraNotes.join("\n");
+      const { error } = await supabase.from("leads").insert(row);
+      if (!error) imported++;
+    }
+  }
+
+  if (imported === 0) {
+    setImportError("No valid rows imported. Check that your CSV has expected columns (domain, name, email1, validatedEmail1, mainCategories, language).");
+    return;
+  }
+  setShowImport(false);
+  setImportText("");
+  fetchLeads();
+};
+
+const downloadCSV = () => {
     const headers = ["store_name", "store_url", "email", "score", "status", "notes", "created_at"];
     const rows = filteredLeads.map((l) =>
       [l.store_name || "", l.store_url || "", l.email || "", l.score || "", l.status || "", l.notes || "", l.created_at || ""]
