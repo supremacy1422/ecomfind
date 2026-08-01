@@ -78,14 +78,30 @@ export async function POST(req: NextRequest) {
 
     /* ─── Fallback to curated database ─── */
     if (usedFallback) {
+      // Build date range from year/month/day inputs
+      let fromDate: string | undefined;
+      let toDate: string | undefined;
+
+      if (createdYear) {
+        const year = parseInt(createdYear);
+        const month = createdMonth ? parseInt(createdMonth) : 1;
+        const day = createdDay ? parseInt(createdDay) : 1;
+        fromDate = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T00:00:00Z`;
+
+        const endMonth = createdMonth ? parseInt(createdMonth) : 12;
+        const endDay = createdDay ? parseInt(createdDay) : 28;
+        const daysInMonth = new Date(year, endMonth, 0).getDate();
+        toDate = `${year}-${String(endMonth).padStart(2, "0")}-${String(Math.min(endDay, daysInMonth)).padStart(2, "0")}T23:59:59Z`;
+      }
+
       const fallback = searchStores(
-        country,
-        industry,
+        "", // empty query = match all
+        country || undefined,
+        industry || undefined,
         minProducts,
         maxProducts,
-        createdYear,
-        createdMonth,
-        createdDay,
+        fromDate,
+        toDate,
         safeLimit
       );
 
