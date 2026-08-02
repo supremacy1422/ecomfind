@@ -252,9 +252,13 @@ function OutreachComposer() {
     setSendStatus("");
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch("/api/send-email", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-supabase-token": session?.access_token || "",
+        },
         body: JSON.stringify({
           to: recipient,
           subject,
