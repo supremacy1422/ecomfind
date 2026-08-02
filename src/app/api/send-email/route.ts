@@ -15,22 +15,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
+    // Create ONE client with auth token for ALL operations
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      }
     );
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    // Validate user
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       console.error("getUser failed:", userError);
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const { data: conn } = await supabase
+    // Query DB with SAME authorized client
+    const { data: conn, error: connError } = await supabase
       .from("gmail_connections")
       .select("email, refresh_token")
       .eq("user_id", user.id)
       .single();
+
+    if (connError) {
+      console.error("DB query error:", connError);
+    }
 
     if (!conn) {
       return NextResponse.json(
