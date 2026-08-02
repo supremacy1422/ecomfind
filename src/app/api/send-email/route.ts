@@ -1,7 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { OAuth2Client } from "google-auth-library";
-import nodemailer from "nodemailer";
 import { createClient } from "@supabase/supabase-js";
+
+const rateLimits = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const windowMs = 60 * 1000;
+  const maxPerMinute = 10;
+
+  const existing = rateLimits.get(userId);
+  if (!existing || now > existing.resetAt) {
+    rateLimits.set(userId, { count: 1, resetAt: now + windowMs });
+    return true;
+  }
+  if (existing.count >= maxPerMinute) return false;
+  existing.count++;
+  return true;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,32 +31,44 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Create ONE client with auth token for ALL operations
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        global: { headers: { Authorization: `Bearer ${token}` } },
-      }
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
     );
 
-    // Validate user
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
-      console.error("getUser failed:", userError);
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Query DB with SAME authorized client
-    const { data: conn, error: connError } = await supabase
+    if (!checkRateLimit(user.id)) {
+      return NextResponse.json(
+        { error: "Rate limit: 10 emails per minute max." },
+        { status: 429 }
+      );
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    const { count: sentToday } = await supabase
+      .from("email_send_logs")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("sent_at", `${today}T00:00:00`)
+      .lte("sent_at", `${today}T23:59:59`);
+
+    if ((sentToday || 0) >= 450) {
+      return NextResponse.json(
+        { error: "Daily limit reached (450/500). Try again tomorrow or use a different Gmail." },
+        { status: 429 }
+      );
+    }
+
+    const { data: conn } = await supabase
       .from("gmail_connections")
       .select("email, refresh_token")
       .eq("user_id", user.id)
       .single();
-
-    if (connError) {
-      console.error("DB query error:", connError);
-    }
 
     if (!conn) {
       return NextResponse.json(
@@ -56,27 +84,55 @@ export async function POST(req: NextRequest) {
     oauth2Client.setCredentials({ refresh_token: conn.refresh_token });
     const { token: accessToken } = await oauth2Client.getAccessToken();
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        type: "OAuth2",
-        user: conn.email,
-        clientId: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        refreshToken: conn.refresh_token,
-        accessToken: accessToken || undefined,
-      },
-    });
+    if (!accessToken) {
+      return NextResponse.json(
+        { error: "Gmail token expired. Please reconnect your Gmail." },
+        { status: 500 }
+      );
+    }
 
-    await transporter.sendMail({
-      from: `"${fromName || "EcomFind"}" <${conn.email}>`,
-      to,
+    const emailLines = [
+      `From: ${fromName || "EcomFind"} <${conn.email}>`,
+      `To: ${to}`,
+      `Subject: ${subject}`,
+      "",
+      body,
+    ];
+    const rawEmail = Buffer.from(emailLines.join("\r\n"))
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+
+    const sendRes = await fetch(
+      "https://gmail.googleapis.com/gmail/v1/users/me/messages/send",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ raw: rawEmail }),
+      }
+    );
+
+    if (!sendRes.ok) {
+      const err = await sendRes.json().catch(() => ({}));
+      console.error("Gmail API error:", err);
+      return NextResponse.json(
+        { error: "Gmail rejected the send. You may have hit your daily limit.", detail: err },
+        { status: 500 }
+      );
+    }
+
+    await supabase.from("email_send_logs").insert({
+      user_id: user.id,
+      recipient: to,
       subject,
-      text: body,
-      html: body.replace(/\n/g, "<br>"),
+      sent_at: new Date().toISOString(),
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, sentToday: (sentToday || 0) + 1 });
   } catch (err: any) {
     console.error("Send error:", err);
     return NextResponse.json(
