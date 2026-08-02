@@ -1,289 +1,178 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Shopify problem database (extracted from your research)
 const PROBLEM_DB = {
   technical: [
-    { id: 'slow_theme', name: 'Slow-loading theme', impact: 'High', revenue: '10-15% conversion drop per second of load time' },
-    { id: 'mobile_responsive', name: 'Poor mobile responsiveness', impact: 'Critical', revenue: '60%+ of traffic is mobile; poor UX = immediate bounce' },
-    { id: 'js_errors', name: 'JavaScript errors breaking functionality', impact: 'High', revenue: 'Broken checkout = 100% revenue loss on affected users' },
-    { id: 'theme_conflicts', name: 'Theme conflicts after update', impact: 'Medium', revenue: 'Broken layouts reduce trust and conversions' },
-    { id: 'accessibility', name: 'Accessibility issues', impact: 'Medium', revenue: 'Excludes 15-20% of potential customers' },
-    { id: 'ssl_mixed', name: 'Mixed-content warnings', impact: 'Medium', revenue: 'Browser security warnings scare buyers away' },
-    { id: 'broken_redirects', name: 'Broken redirects', impact: 'High', revenue: 'SEO traffic lost, customers hit 404s' },
-    { id: 'search_broken', name: 'Search function issues', impact: 'Medium', revenue: '30% of users use search; broken = lost sales' },
-    { id: 'collection_filter', name: 'Collection filtering bugs', impact: 'Medium', revenue: 'Poor product discovery reduces AOV' },
-    { id: 'checkout_custom', name: 'Broken checkout customization', impact: 'Critical', revenue: 'Checkout errors = abandoned purchases' },
+    { id: 'slow_theme', name: 'slow load times', impact: 'High', revenue: 'Every extra second costs ~7% in conversions' },
+    { id: 'mobile_responsive', name: 'mobile experience gaps', impact: 'Critical', revenue: 'Over 60% of traffic is mobile' },
+    { id: 'no_ssl', name: 'security warnings', impact: 'High', revenue: 'Browsers flag insecure sites' },
   ],
   marketing: [
-    { id: 'no_fb_pixel', name: 'Missing Facebook Pixel', impact: 'High', revenue: 'Cannot retarget 97% of visitors; 20-30% ROAS loss' },
-    { id: 'no_tiktok', name: 'Missing TikTok Pixel', impact: 'Medium', revenue: 'Missing fastest-growing ad channel for Gen Z' },
-    { id: 'no_google_ads', name: 'Missing Google Ads conversion tracking', impact: 'High', revenue: 'Wasted ad spend, no optimization data' },
-    { id: 'no_klaviyo', name: 'Missing email marketing flows', impact: 'Critical', revenue: 'Email drives 20-30% of revenue; flows = automated sales' },
-    { id: 'no_reviews', name: 'Missing product reviews', impact: 'High', revenue: 'Reviews increase conversion 15-270%; none = trust gap' },
-    { id: 'no_chat', name: 'Missing live chat', impact: 'Medium', revenue: 'Chat increases conversion 20%; questions go unanswered' },
-    { id: 'no_popup', name: 'Missing email capture popup', impact: 'High', revenue: '95% visitors leave; no capture = lost leads forever' },
-    { id: 'no_urgency', name: 'Missing urgency timers/scarcity', impact: 'Medium', revenue: 'Urgency increases conversion 10-15%' },
-    { id: 'no_social_proof', name: 'Weak social proof', impact: 'High', revenue: 'No trust signals = high bounce rate' },
-    { id: 'poor_seo', name: 'Poor on-page SEO', impact: 'Medium', revenue: 'Organic traffic is free; poor SEO = paying for every visitor' },
+    { id: 'no_fb_pixel', name: 'Meta/Facebook tracking', impact: 'High', revenue: 'No retargeting = 97% of visitors lost forever' },
+    { id: 'no_tiktok', name: 'TikTok ad tracking', impact: 'Medium', revenue: 'Missing the fastest-growing ad channel' },
+    { id: 'no_google_ads', name: 'Google conversion tracking', impact: 'High', revenue: 'Ad spend flying blind' },
+    { id: 'no_klaviyo', name: 'email marketing flows', impact: 'Critical', revenue: 'Email drives 20-30% of e-com revenue' },
+    { id: 'no_reviews', name: 'product reviews', impact: 'High', revenue: 'Reviews lift conversion 15-270%' },
+    { id: 'no_chat', name: 'live chat support', impact: 'Medium', revenue: 'Questions go unanswered = lost sales' },
+    { id: 'no_popup', name: 'email list building', impact: 'High', revenue: '95% of visitors leave without a trace' },
+    { id: 'no_urgency', name: 'urgency or scarcity', impact: 'Medium', revenue: 'No reason to buy now' },
   ],
   product: [
-    { id: 'poor_images', name: 'Low-quality product images', impact: 'High', revenue: 'Images drive 90% of purchase decisions' },
-    { id: 'poor_desc', name: 'Poor product descriptions', impact: 'High', revenue: 'Weak copy = no emotional connection to buy' },
-    { id: 'missing_variants', name: 'Missing product variants', impact: 'Medium', revenue: 'Customers want options; missing = lost sales' },
-    { id: 'no_video', name: 'Product pages missing video', impact: 'High', revenue: 'Video increases conversion 30-80%' },
-    { id: 'no_size_guide', name: 'Missing size guides', impact: 'Medium', revenue: 'High return rate from wrong sizing' },
-    { id: 'duplicate_products', name: 'Duplicate products', impact: 'Low', revenue: 'SEO cannibalization, customer confusion' },
+    { id: 'poor_images', name: 'product photography', impact: 'High', revenue: 'Images drive 90% of purchase decisions' },
+    { id: 'no_video', name: 'product video', impact: 'High', revenue: 'Video lifts conversion 30-80%' },
+    { id: 'no_size_guide', name: 'size guides', impact: 'Medium', revenue: 'Returns eat margins' },
   ],
   operations: [
-    { id: 'high_abandon', name: 'High cart abandonment', impact: 'Critical', revenue: '70% of carts abandoned; $4 trillion lost annually industry-wide' },
-    { id: 'no_abandoned_flow', name: 'No abandoned cart recovery', impact: 'Critical', revenue: '10-15% of abandoned carts recoverable via email' },
-    { id: 'high_shipping', name: 'Expensive shipping costs', impact: 'High', revenue: '#1 reason for cart abandonment' },
-    { id: 'complex_checkout', name: 'Too many checkout steps', impact: 'High', revenue: 'Each extra step = 10% drop in completion' },
-    { id: 'no_upsell', name: 'Poor upselling/cross-selling', impact: 'Medium', revenue: 'AOV increase of 10-30% possible' },
-    { id: 'weak_cta', name: 'Weak call-to-action buttons', impact: 'Medium', revenue: 'Strong CTAs can double click-through rates' },
+    { id: 'high_abandon', name: 'cart abandonment recovery', impact: 'Critical', revenue: '70% of carts abandoned, 10-15% recoverable' },
+    { id: 'complex_checkout', name: 'checkout friction', impact: 'High', revenue: 'Each extra step drops 10% completion' },
+    { id: 'no_upsell', name: 'upsells', impact: 'Medium', revenue: 'AOV opportunity left on table' },
   ],
 };
 
-function detectFromHtml(html: string, url: string) {
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function generateOutreach(storeName: string, problems: string[], revenueKillers: string[], niche: string) {
+  const name = storeName || 'there';
+  const firstName = name.split(' ')[0];
+  const topIssue = problems[0] || 'conversion optimization';
+  const secondIssue = problems[1] || '';
+  const thirdIssue = problems[2] || '';
+
+  const openers = [
+    `Came across ${name} while researching ${niche} brands and wanted to reach out personally.`,
+    `I've been spending time in the ${niche} space lately and ${name} stood out — but I noticed something that might be holding you back.`,
+    `Quick note: I was analyzing ${niche} stores and found ${name}. Love the brand direction, but there's a gap I wanted to flag.`,
+    `Been looking at ${niche} brands this week and ${name} caught my eye. Great positioning, but I spotted a few leaks in the funnel.`,
+  ];
+
+  const problemPhrases = [
+    `I noticed you're missing ${topIssue}.${secondIssue ? ` Also no sign of ${secondIssue}.` : ''} ${thirdIssue ? ` And ${thirdIssue} seems to be absent too.` : ''}`,
+    `From the outside, it looks like ${topIssue} isn't set up yet.${secondIssue ? ` Same with ${secondIssue}.` : ''}`,
+    `One thing that stood out: no ${topIssue} in place.${secondIssue ? ` I also couldn't find ${secondIssue}.` : ''}`,
+  ];
+
+  const impactPhrases = [
+    `Not a huge deal on day one, but over 3-6 months that adds up to real revenue walking out the door.`,
+    `Most founders don't notice until they compare quarters. The stores fixing this usually see a 20-35% lift within 60 days.`,
+    `In the ${niche} space specifically, that's often the difference between a 2% and a 3.5% conversion rate.`,
+  ];
+
+  const ctas = [
+    `If you're curious, I can send over a quick 3-minute audit video showing exactly what I'd change first. No pitch — just figured it might be useful.`,
+    `Worth a conversation? I help ${niche} brands plug these exact leaks. Happy to share a free audit if it's helpful.`,
+    `I run a small CRO studio focused on ${niche} brands. I'd love to send you a short audit — purely value, no strings attached. Interested?`,
+    `Not sure if you're actively optimizing right now, but if you ever want a second set of eyes on the funnel, I'm happy to take a look.`,
+  ];
+
+  const closers = [
+    `Either way, keep building — the brand looks solid.`,
+    `No pressure at all. Just thought it was worth mentioning.`,
+    `Cheers, and good luck with the next quarter.`,
+  ];
+
+  const opener = pickRandom(openers);
+  const problemPhrase = pickRandom(problemPhrases);
+  const impactPhrase = pickRandom(impactPhrases);
+  const cta = pickRandom(ctas);
+  const closer = pickRandom(closers);
+
+  return `${opener}
+
+${problemPhrase} ${impactPhrases.length > 0 ? impactPhrase : ''}
+
+${cta}
+
+${closer}
+
+Best,`;
+}
+
+function detectFromHtml(html: string, url: string, niche: string = 'general') {
   const lower = html.toLowerCase();
-  const findings: any[] = [];
+  const problems: string[] = [];
+  const revenueKillers: string[] = [];
   const services: string[] = [];
+
+  const isShopify = lower.includes('shopify') || lower.includes('cdn.shopify.com') || lower.includes('myshopify.com');
   
-  // Shopify detection
-  const isShopify = lower.includes('shopify') || 
-    lower.includes('cdn.shopify.com') || 
-    lower.includes('myshopify.com') ||
-    lower.includes('shopify-checkout') ||
-    lower.includes('//shopify.');
-  
-  // Theme detection (basic)
   let themeName = 'Unknown';
-  const themeMatch = html.match(/theme_name["']?\s*:\s*["']([^"']+)/i) || 
-    html.match(/id=["']shopify-theme["'][^>]*data-theme-name=["']([^"']+)/i);
+  const themeMatch = html.match(/theme_name["']?\s*:\s*["']([^"']+)/i);
   if (themeMatch) themeName = themeMatch[1];
   else if (lower.includes('dawn')) themeName = 'Dawn';
   else if (lower.includes('prestige')) themeName = 'Prestige';
   else if (lower.includes('impulse')) themeName = 'Impulse';
-  else if (lower.includes('debut')) themeName = 'Debut';
-  
-  // Tracking pixels
-  const hasFacebookPixel = lower.includes('fbevents.js') || lower.includes('facebook-pixel') || lower.includes('connect.facebook.net');
+
+  const hasFacebookPixel = lower.includes('fbevents.js') || lower.includes('connect.facebook.net');
   const hasTikTokPixel = lower.includes('tiktok') && (lower.includes('pixel') || lower.includes('ttq'));
-  const hasGoogleAds = lower.includes('gtag') || lower.includes('googletagmanager') || lower.includes('google-analytics');
+  const hasGoogleAds = lower.includes('gtag') || lower.includes('googletagmanager');
   const hasKlaviyo = lower.includes('klaviyo') || lower.includes('a.klaviyo.com');
-  
-  // UX elements
   const hasReviews = lower.includes('reviews') || lower.includes('yotpo') || lower.includes('loox') || lower.includes('stamped') || lower.includes('judge.me');
-  const hasChat = lower.includes('tidio') || lower.includes('gorgias') || lower.includes('zendesk') || lower.includes('intercom') || lower.includes('live chat') || lower.includes('chat-widget');
-  const hasEmailPopup = lower.includes('klaviyo') && (lower.includes('popup') || lower.includes('signup') || lower.includes('newsletter'));
-  const hasUrgency = lower.includes('countdown') || lower.includes('timer') || lower.includes('limited') || lower.includes('selling fast') || lower.includes('only left');
-  
-  // Technical
+  const hasChat = lower.includes('tidio') || lower.includes('gorgias') || lower.includes('zendesk') || lower.includes('intercom') || lower.includes('chat-widget');
+  const hasEmailPopup = lower.includes('klaviyo') && (lower.includes('popup') || lower.includes('signup'));
+  const hasUrgency = lower.includes('countdown') || lower.includes('timer') || lower.includes('limited') || lower.includes('selling fast');
   const hasSSL = url.startsWith('https');
   const hasViewport = lower.includes('viewport');
   const pageSizeKB = Math.round(html.length / 1024);
-  const isSlow = pageSizeKB > 1500; // >1.5MB is heavy
-  
-  // SEO basics
-  const hasTitle = html.includes('<title>') && html.match(/<title>(.+?)<\/title>/);
-  const hasMetaDesc = lower.includes('name="description"') || lower.includes('name=\'description\'');
-  const hasAltText = lower.includes('alt=');
-  const hasH1 = lower.includes('<h1');
-  
-  // Product signals
+  const isSlow = pageSizeKB > 1500;
   const hasVideo = lower.includes('<video') || lower.includes('youtube.com/embed') || lower.includes('vimeo.com');
-  const hasSizeGuide = lower.includes('size guide') || lower.includes('size-chart') || lower.includes('sizing');
-  
-  // Build problems list
-  const problems: string[] = [];
-  const revenueKillers: string[] = [];
-  
-  if (isSlow) {
-    findings.push(PROBLEM_DB.technical[0]);
-    problems.push('Theme loads slowly (>1.5MB page size detected)');
-    revenueKillers.push('Every 1s delay = 7% conversion loss. Estimated $2,000-5,000/mo in lost sales for avg store.');
-    services.push('Speed Optimization');
-  }
-  
-  if (!hasFacebookPixel) {
-    findings.push(PROBLEM_DB.marketing[0]);
-    problems.push('No Facebook/Meta Pixel detected');
-    revenueKillers.push('Cannot retarget 97% of visitors. Estimated 20-30% ROAS loss on ad spend.');
-    services.push('Facebook Ads Setup');
-  }
-  
-  if (!hasTikTokPixel) {
-    findings.push(PROBLEM_DB.marketing[1]);
-    problems.push('No TikTok Pixel detected');
-    revenueKillers.push('Missing Gen Z ad channel. Competitors with TikTok tracking get 15-25% cheaper CAC.');
-    services.push('TikTok Ads');
-  }
-  
-  if (!hasGoogleAds) {
-    findings.push(PROBLEM_DB.marketing[2]);
-    problems.push('No Google Analytics/Ads conversion tracking');
-    revenueKillers.push('Flying blind on Google Ads. Wasted budget with no attribution data.');
-    services.push('Google Ads & Analytics');
-  }
-  
-  if (!hasKlaviyo) {
-    findings.push(PROBLEM_DB.marketing[3]);
-    problems.push('No email marketing platform detected (Klaviyo)');
-    revenueKillers.push('Email drives 20-30% of e-com revenue. No flows = $3,000-8,000/mo left on table.');
-    services.push('Email Marketing Setup');
-  }
-  
-  if (!hasReviews) {
-    findings.push(PROBLEM_DB.marketing[4]);
-    problems.push('No product review system detected');
-    revenueKillers.push('Reviews increase conversion 15-270%. No reviews = customers buy from competitor instead.');
-    services.push('Review System Install');
-  }
-  
-  if (!hasChat) {
-    findings.push(PROBLEM_DB.marketing[5]);
-    problems.push('No live chat widget detected');
-    revenueKillers.push('Questions go unanswered. 20% of visitors with questions abandon without buying.');
-    services.push('Live Chat Setup');
-  }
-  
-  if (!hasEmailPopup) {
-    findings.push(PROBLEM_DB.marketing[6]);
-    problems.push('No email capture mechanism detected');
-    revenueKillers.push('95% of visitors leave forever. Industry avg: 10% email capture rate = massive list growth lost.');
-    services.push('Email Capture Popup');
-  }
-  
-  if (!hasUrgency) {
-    findings.push(PROBLEM_DB.marketing[7]);
-    problems.push('No urgency/scarcity elements detected');
-    revenueKillers.push('No reason to buy NOW. Urgency increases conversion 10-15% on average.');
-    services.push('CRO & Urgency Elements');
-  }
-  
-  if (!hasVideo) {
-    findings.push(PROBLEM_DB.product[3]);
-    problems.push('Product pages missing video content');
-    revenueKillers.push('Video increases conversion 30-80%. Static images alone are losing sales.');
-    services.push('Product Video Production');
-  }
-  
-  if (!hasSizeGuide) {
-    findings.push(PROBLEM_DB.product[5]);
-    problems.push('No size guide detected');
-    revenueKillers.push('High return rate from wrong sizing = margin erosion + unhappy customers.');
-    services.push('Size Guide Design');
-  }
-  
-  if (!hasViewport) {
-    findings.push(PROBLEM_DB.technical[1]);
-    problems.push('Missing mobile viewport meta tag');
-    revenueKillers.push('60%+ traffic is mobile. Broken mobile experience = instant 40%+ bounce rate.');
-    services.push('Mobile Optimization');
-  }
-  
-  if (pageSizeKB > 800 && !isSlow) {
-    findings.push(PROBLEM_DB.technical[0]);
-    problems.push('Above-average page weight detected');
-    revenueKillers.push('Heavy pages slow down on 3G/4G. Mobile users bounce before page loads.');
-    services.push('Performance Audit');
-  }
-  
-  if (!hasTitle || !hasMetaDesc) {
-    findings.push(PROBLEM_DB.marketing[9]);
-    problems.push('Incomplete on-page SEO (missing title or meta description)');
-    revenueKillers.push('Organic traffic is free. Poor SEO = paying for every visitor via ads.');
-    services.push('SEO Optimization');
-  }
-  
-  // Always add abandoned cart if no Klaviyo
-  if (!hasKlaviyo) {
-    findings.push(PROBLEM_DB.operations[1]);
-    problems.push('No abandoned cart recovery email flow');
-    revenueKillers.push('70% of carts abandoned. Recoverable: 10-15% = $2,000-6,000/mo for avg store.');
-    if (!services.includes('Email Marketing Setup')) services.push('Abandoned Cart Flow');
-  }
-  
-  // Score calculation
+  const hasSizeGuide = lower.includes('size guide') || lower.includes('size-chart');
+
+  if (isSlow) { problems.push('speed optimization'); revenueKillers.push('Slow themes bleed conversions on mobile'); services.push('Speed Optimization'); }
+  if (!hasFacebookPixel) { problems.push('Meta/Facebook tracking'); revenueKillers.push('No retargeting = 97% of visitors lost'); services.push('Facebook Ads'); }
+  if (!hasTikTokPixel) { problems.push('TikTok ad tracking'); revenueKillers.push('Missing Gen Z acquisition channel'); services.push('TikTok Ads'); }
+  if (!hasGoogleAds) { problems.push('Google conversion tracking'); revenueKillers.push('Google Ads running blind'); services.push('Google Ads'); }
+  if (!hasKlaviyo) { problems.push('email marketing flows'); revenueKillers.push('Email revenue left on table'); services.push('Email Marketing'); }
+  if (!hasReviews) { problems.push('product reviews'); revenueKillers.push('Social proof gap'); services.push('Review System'); }
+  if (!hasChat) { problems.push('live chat'); revenueKillers.push('Questions unanswered'); services.push('Live Chat'); }
+  if (!hasEmailPopup) { problems.push('email list building'); revenueKillers.push('95% visitors leave forever'); services.push('List Building'); }
+  if (!hasUrgency) { problems.push('urgency/scarcity'); revenueKillers.push('No reason to buy now'); services.push('CRO'); }
+  if (!hasVideo) { problems.push('product video'); revenueKillers.push('Static images underperform'); services.push('Video'); }
+  if (!hasSizeGuide) { problems.push('size guides'); revenueKillers.push('Returns eating margin'); services.push('UX Design'); }
+  if (!hasViewport) { problems.push('mobile optimization'); revenueKillers.push('Broken mobile experience'); services.push('Mobile Optimization'); }
+
   let score = 100;
-  score -= problems.length * 7; // -7 per major problem
+  score -= problems.length * 6;
   if (isSlow) score -= 10;
   if (!hasSSL) score -= 15;
   score = Math.max(15, Math.min(98, score));
-  
-  // Revenue estimate
+
   let revenueImpact = 'Low';
-  if (findings.filter(f => f.impact === 'Critical').length >= 2) revenueImpact = '$5,000-12,000/mo';
-  else if (findings.filter(f => f.impact === 'High').length >= 3) revenueImpact = '$3,000-8,000/mo';
-  else if (findings.filter(f => f.impact === 'High').length >= 1) revenueImpact = '$1,500-4,000/mo';
-  else if (findings.length > 0) revenueImpact = '$500-2,000/mo';
-  
-  const priorityFix = problems[0] || 'No critical issues detected';
-  
-  // Generate outreach
-  const topProblem = problems[0] || 'conversion optimization';
-  const outreach = `Hi there,
+  const criticalCount = problems.filter((_, i) => revenueKillers[i]?.includes('bleed') || revenueKillers[i]?.includes('left on table')).length;
+  if (criticalCount >= 2) revenueImpact = '$5,000-12,000/mo';
+  else if (problems.length >= 4) revenueImpact = '$3,000-8,000/mo';
+  else if (problems.length >= 2) revenueImpact = '$1,500-4,000/mo';
+  else if (problems.length > 0) revenueImpact = '$500-2,000/mo';
 
-I was analyzing your store and noticed ${problems.length > 0 ? `a few things that could be costing you sales:
+  const domain = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const displayName = domain.replace(/^www\./, '').split('.')[0].replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
-${problems.slice(0, 3).map((p, i) => `${i + 1}. ${p}`).join('\n')}
+  const outreach = generateOutreach(displayName, problems, revenueKillers, niche);
 
-The biggest one: ${priorityFix}. ${revenueKillers[0] || ''}
-
-I help Shopify stores fix exactly these issues. Would you be open to a quick audit of your store — no cost, just actionable fixes you can implement this week?
-
-Best regards` : 'your store looks solid, but there are always optimization opportunities. Would you be open to a quick audit?'}`
-  
-  // Extract emails from page
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
   const foundEmails = [...html.matchAll(emailRegex)].map(m => m[0]).filter((e: string) => 
-    !e.includes('example') && 
-    !e.includes('test@') && 
-    !e.includes('noreply') &&
-    !e.includes('no-reply')
+    !e.includes('example') && !e.includes('test@') && !e.includes('noreply') && !e.includes('no-reply')
   );
   const uniqueEmails = [...new Set(foundEmails)].slice(0, 5);
-  
-  const domain = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-  const guessedEmails = [
-    `contact@${domain}`,
-    `support@${domain}`,
-    `info@${domain}`,
-    `hello@${domain}`,
-  ];
+  const guessedEmails = [`contact@${domain}`, `support@${domain}`, `hello@${domain}`];
   const discoveredEmails = uniqueEmails.length > 0 ? uniqueEmails : guessedEmails;
-  
+
   return {
-    name: domain.replace(/^www\./, '').split('.')[0].replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+    name: displayName,
     url,
     isShopify,
     themeName,
     pageSize: `${pageSizeKB} KB`,
     score,
     revenueImpact,
-    priorityFix,
-    problems,
+    priorityFix: problems[0] || 'No critical issues detected',
+    problems: problems.map((p, i) => `${p} — ${revenueKillers[i]}`),
     revenueKillers,
-    opportunities: `This store has ${problems.length} detectable gaps. ${!hasKlaviyo ? 'Email marketing alone could recover 20-30% of revenue.' : ''} ${!hasReviews ? 'Adding reviews could double conversion on product pages.' : ''} ${isSlow ? 'Speed optimization typically yields 10-20% conversion lift.' : ''}`,
+    opportunities: `Found ${problems.length} gaps. ${!hasKlaviyo ? 'Email flows alone typically recover 10-15% of abandoned revenue. ' : ''}${isSlow ? 'Speed fixes usually lift mobile conversion 15-20%. ' : ''}${!hasReviews ? 'Reviews are the highest-ROI trust signal. ' : ''}`,
     services: [...new Set(services)],
-    socialCommerce: {
-      hasFacebookPixel,
-      hasTikTokPixel,
-      hasGoogleAds,
-      hasSnapchat: lower.includes('snapchat') || lower.includes('sc.pixel'),
-    },
-    technical: {
-      hasSSL,
-      isMobileResponsive: hasViewport,
-      hasSitemap: lower.includes('sitemap'),
-      hasRobotsTxt: lower.includes('robots.txt'),
-    },
-    uxConversion: {
-      hasReviews,
-      hasUrgencyTimers: hasUrgency,
-      hasEmailPopup,
-      hasLiveChat: hasChat,
-    },
+    socialCommerce: { hasFacebookPixel, hasTikTokPixel, hasGoogleAds, hasSnapchat: lower.includes('snapchat') },
+    technical: { hasSSL, isMobileResponsive: hasViewport, hasSitemap: lower.includes('sitemap'), hasRobotsTxt: lower.includes('robots.txt') },
+    uxConversion: { hasReviews, hasUrgencyTimers: hasUrgency, hasEmailPopup, hasLiveChat: hasChat },
     primaryEmail: discoveredEmails[0] || `contact@${domain}`,
     discoveredEmails,
     outreach,
@@ -292,8 +181,7 @@ Best regards` : 'your store looks solid, but there are always optimization oppor
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { url } = body;
-
+  const { url, niche = 'general' } = body;
   if (!url) return NextResponse.json({ error: 'URL required' }, { status: 400 });
 
   let targetUrl = url;
@@ -302,21 +190,15 @@ export async function POST(req: NextRequest) {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
-    
     const res = await fetch(targetUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
       signal: controller.signal,
     });
-    
     clearTimeout(timeout);
-    
-    if (!res.ok && res.status !== 200) {
-      return NextResponse.json({ error: `Failed to fetch: ${res.status}` }, { status: 502 });
-    }
-    
+
+    if (!res.ok) return NextResponse.json({ error: `Failed to fetch: ${res.status}` }, { status: 502 });
     const html = await res.text();
-    const result = detectFromHtml(html, targetUrl);
-    
+    const result = detectFromHtml(html, targetUrl, niche);
     return NextResponse.json(result);
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Failed to analyze store' }, { status: 500 });
