@@ -3,7 +3,7 @@ import { OAuth2Client } from "google-auth-library";
 import { createClient } from "@supabase/supabase-js";
 
 export async function GET(req: NextRequest) {
-  const origin = new URL("/", req.url).origin;
+  const origin = req.nextUrl.origin;
 
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
