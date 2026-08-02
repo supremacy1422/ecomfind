@@ -439,7 +439,7 @@ export default function HomePage() {
             <div>
               <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4">Legal</h4>
               <ul className="space-y-2">
-                <li><span className="text-sm text-slate-500">Privacy Policy</span></li>
+                <li><a href="/privacy" className="text-sm text-slate-500 hover:text-white transition-colors">Privacy Policy</a></li>
                 <li><span className="text-sm text-slate-500">Terms of Service</span></li>
               </ul>
             </div>
