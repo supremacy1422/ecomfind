@@ -43,22 +43,14 @@ export async function GET(req: NextRequest) {
     );
 
     const { tokens } = await oauth2Client.getToken(code);
-    if (!tokens.refresh_token || !tokens.access_token) {
+    if (!tokens.refresh_token) {
       throw new Error("No refresh token received");
     }
 
-    // Get email from Gmail API profile (works with gmail.send scope)
-    const profileRes = await fetch(
-      "https://gmail.googleapis.com/gmail/v1/users/me/profile",
-      { headers: { Authorization: `Bearer ${tokens.access_token}` } }
-    );
-    const profile = await profileRes.json();
-
-    const email = profile?.emailAddress || null;
-
+    // Use the email from Supabase auth (they logged in with Google)
+    const email = user.email;
     if (!email) {
-      console.error("No email from Gmail profile:", profile);
-      return NextResponse.redirect(`${origin}/outreach?error=no_email&message=Gmail+did+not+return+email`);
+      return NextResponse.redirect(`${origin}/outreach?error=no_email&message=No+email+on+user+account`);
     }
 
     const { error: upsertError } = await supabase.from("gmail_connections").upsert({
