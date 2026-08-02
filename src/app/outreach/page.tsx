@@ -435,20 +435,29 @@ function OutreachComposer() {
 
           {/* Gmail Connection */}
           {!gmailConnected ? (
-            <form action="/api/auth/gmail" method="GET" className="mb-4">
-              <button
-                type="submit"
-                className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-sm transition-colors block text-center"
-              >
-                Connect Your Gmail to Send
-              </button>
-            </form>
+            <button
+              onClick={async () => {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.access_token) {
+                  window.location.href = `/api/auth/gmail?token=${session.access_token}`;
+                } else {
+                  window.location.href = "/login?redirect=/outreach";
+                }
+              }}
+              className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-sm transition-colors mb-4 block text-center"
+            >
+              Connect Your Gmail to Send
+            </button>
           ) : (
             <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 mb-4">
               <span className="text-xs text-emerald-400">Sending via: {gmailEmail}</span>
               <button
                 onClick={async () => {
-                  await fetch("/api/auth/gmail/disconnect", { method: "POST" });
+                  const { data: { session } } = await supabase.auth.getSession();
+                  await fetch("/api/auth/gmail/disconnect", {
+                    method: "POST",
+                    headers: { "x-supabase-token": session?.access_token || "" },
+                  });
                   setGmailConnected(false);
                   setGmailEmail("");
                   setSendStatus("Gmail disconnected");
