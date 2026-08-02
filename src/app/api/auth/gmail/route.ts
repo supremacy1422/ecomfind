@@ -5,7 +5,7 @@ import { cookies } from "next/headers";
 
 export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin;
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
 
   // Read Supabase auth cookie manually
   const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.split(".")[0]?.split("//")[1] || "";
