@@ -606,10 +606,7 @@ export default function OutreachPage() {
               <IconStore className="w-5 h-5" />
               <span className="text-sm font-medium hidden sm:inline">Home</span>
             </a>
-            <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
-              <IconZap className="w-5 h-5 text-violet-400" />
-            </div>
-            <span className="font-bold text-white tracking-tight">EcomFind</span>
+            <img src="/ecomfind_logo.png" alt="EcomFind" className="h-8 w-auto" />
           </div>
           <nav className="hidden md:flex items-center gap-1">
             <a href="/discover" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Audit</a>
