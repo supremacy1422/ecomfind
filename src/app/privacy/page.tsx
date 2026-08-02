@@ -1,34 +1,42 @@
-import Link from 'next/link';
-
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen bg-white">
-      <div className="max-w-3xl mx-auto px-6 py-12">
-        <Link href="/" className="text-blue-600 hover:underline mb-8 inline-block">← Back to Home</Link>
-        <h1 className="text-3xl font-bold mb-6">Privacy Policy</h1>
-        
-        <div className="prose text-gray-700 space-y-4">
-          <p><strong>Last updated:</strong> July 25, 2026</p>
-          
-          <h2 className="text-xl font-bold mt-6">1. Information We Collect</h2>
-          <p>We collect your Gmail email address and OAuth tokens when you choose to connect your Gmail account. This is required to send outreach emails on your behalf.</p>
-          
-          <h2 className="text-xl font-bold mt-6">2. How We Use Your Information</h2>
-          <p>Your Gmail access token is used solely to send emails you explicitly request through our platform. We do not read your emails, access your inbox, or use your data for any purpose other than sending the outreach emails you initiate.</p>
-          
-          <h2 className="text-xl font-bold mt-6">3. Data Storage</h2>
-          <p>Your OAuth tokens are encrypted and stored securely in our database. You can revoke access at any time by clicking "Disconnect Gmail" in the app.</p>
-          
-          <h2 className="text-xl font-bold mt-6">4. Third Parties</h2>
-          <p>We use Google's Gmail API to send emails. Your data is not shared with any other third parties.</p>
-          
-          <h2 className="text-xl font-bold mt-6">5. Your Rights</h2>
-          <p>You can disconnect your Gmail account at any time. All your data will be permanently deleted upon request.</p>
-          
-          <h2 className="text-xl font-bold mt-6">6. Contact</h2>
-          <p>For privacy concerns, contact us at supremacy1422@gmail.com</p>
+    <div className="min-h-screen bg-[#0b0f1f] text-slate-200 py-16 px-4">
+      <div className="max-w-2xl mx-auto">
+        <h1 className="text-3xl font-bold text-white mb-6">Privacy Policy</h1>
+        <p className="text-slate-400 text-sm mb-8">Last updated: August 1, 2026</p>
+
+        <div className="space-y-6 text-slate-300 text-sm leading-relaxed">
+          <section>
+            <h2 className="text-lg font-semibold text-white mb-2">1. Information We Collect</h2>
+            <p>We collect your email address and basic profile information when you sign in via Google OAuth. We also store your Gmail refresh token securely to send emails on your behalf through our outreach feature.</p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-white mb-2">2. How We Use Your Information</h2>
+            <p>Your information is used solely to provide the EcomFind service: auditing Shopify stores, managing leads, and sending outreach emails. We do not sell, rent, or share your data with third parties.</p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-white mb-2">3. Gmail Access</h2>
+            <p>When you connect your Gmail account, we request permission to send emails only. We cannot read, delete, or access your inbox. Your refresh token is encrypted and stored in our secure database.</p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-white mb-2">4. Data Security</h2>
+            <p>We use industry-standard encryption and secure databases (Supabase) to protect your data. All API communications are conducted over HTTPS.</p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-white mb-2">5. Your Rights</h2>
+            <p>You may disconnect your Gmail account or delete your account at any time. Upon deletion, all associated data including Gmail tokens and outreach logs are permanently removed.</p>
+          </section>
+
+          <section>
+            <h2 className="text-lg font-semibold text-white mb-2">6. Contact</h2>
+            <p>For questions about this privacy policy, contact: <a href="mailto:supremacy1422@gmail.com" className="text-violet-400 hover:underline">supremacy1422@gmail.com</a></p>
+          </section>
         </div>
       </div>
-    </main>
+    </div>
   );
 }
