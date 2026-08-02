@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -40,6 +40,9 @@ const IconAlert = ({ className = "w-4 h-4" }: { className?: string }) => (
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/discover";
+  
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -53,10 +56,10 @@ export default function LoginPage() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setUser(session.user);
-        router.push("/discover");
+        router.push(redirectTo);
       }
     });
-  }, [router]);
+  }, [router, redirectTo]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,7 +86,7 @@ export default function LoginPage() {
         setError(error.message);
       } else if (data.user) {
         setUser(data.user);
-        router.push("/discover");
+        router.push(redirectTo);
       }
     }
 
@@ -94,7 +97,7 @@ export default function LoginPage() {
     setError("");
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: typeof window !== "undefined" ? window.location.origin + "/discover" : undefined },
+      options: { redirectTo: typeof window !== "undefined" ? window.location.origin + redirectTo : undefined },
     });
     if (error) setError(error.message);
   };
@@ -115,7 +118,7 @@ export default function LoginPage() {
           <h2 className="text-xl font-bold text-white mb-2">You are signed in</h2>
           <p className="text-sm text-slate-400 mb-6">{user.email}</p>
           <div className="flex flex-col gap-3">
-            <a href="/discover" className="w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-sm transition-colors">
+            <a href={redirectTo} className="w-full py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-sm transition-colors">
               Go to Dashboard
             </a>
             <button onClick={handleLogout} className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm transition-colors">
