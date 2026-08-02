@@ -3,9 +3,9 @@ import { OAuth2Client } from "google-auth-library";
 import { createClient } from "@supabase/supabase-js";
 
 export async function GET(req: NextRequest) {
-  const origin = req.nextUrl.origin;
   const code = req.nextUrl.searchParams.get("code");
   const stateB64 = req.nextUrl.searchParams.get("state");
+  const origin = new URL("/", req.url).origin;
 
   if (!code || !stateB64) {
     return NextResponse.redirect(`${origin}/outreach?error=oauth_failed`);
@@ -50,12 +50,11 @@ export async function GET(req: NextRequest) {
     );
     const userInfo = await userInfoRes.json();
 
-    await supabase.from("gmail_connections").delete().eq("user_id", user.id);
-    await supabase.from("gmail_connections").insert({
+    await supabase.from("gmail_connections").upsert({
       user_id: user.id,
       email: userInfo.email,
       refresh_token: tokens.refresh_token,
-    });
+    }, { onConflict: "user_id" });
 
     return NextResponse.redirect(`${origin}/outreach?gmail=connected`);
   } catch (err: any) {

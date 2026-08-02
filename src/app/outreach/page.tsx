@@ -430,6 +430,17 @@ function OutreachComposer() {
           ) : (
             <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 mb-4">
               <span className="text-xs text-emerald-400">Sending via: {gmailEmail}</span>
+              <button
+                onClick={async () => {
+                  await fetch("/api/auth/gmail/disconnect", { method: "POST" });
+                  setGmailConnected(false);
+                  setGmailEmail("");
+                  setSendStatus("Gmail disconnected");
+                }}
+                className="text-xs text-emerald-400 hover:text-rose-400 underline transition-colors"
+              >
+                Disconnect
+              </button>
             </div>
           )}
 
