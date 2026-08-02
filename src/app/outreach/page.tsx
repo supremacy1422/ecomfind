@@ -176,29 +176,40 @@ function OutreachComposer() {
   const [user, setUser] = useState<any>(null);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user || null);
-      if (session?.user?.email) setFromEmail(session.user.email);
+  const checkGmailConnection = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    setUser(session?.user || null);
+    if (session?.user?.email) setFromEmail(session.user.email);
 
-      if (session?.user) {
-        supabase
-          .from("gmail_connections")
-          .select("email")
-          .eq("user_id", session.user.id)
-          .single()
-          .then(({ data }) => {
-            if (data) {
-              setGmailConnected(true);
-              setGmailEmail(data.email);
-            }
-          });
+    if (session?.user) {
+      const { data } = await supabase
+        .from("gmail_connections")
+        .select("email")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      if (data?.email) {
+        setGmailConnected(true);
+        setGmailEmail(data.email);
+      } else {
+        setGmailConnected(false);
+        setGmailEmail("");
       }
-    });
+    }
+  };
 
+  useEffect(() => {
+    checkGmailConnection();
     const saved = localStorage.getItem("outreachLogs");
     if (saved) setLogs(JSON.parse(saved));
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get("gmail") === "connected") {
+      checkGmailConnection();
+      setSendStatus("OK Gmail connected successfully");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     const t = TEMPLATES[templateKey];
