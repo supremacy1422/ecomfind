@@ -202,13 +202,16 @@ function OutreachComposer() {
     checkGmailConnection();
     const saved = localStorage.getItem("outreachLogs");
     if (saved) setLogs(JSON.parse(saved));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (searchParams.get("gmail") === "connected") {
       checkGmailConnection();
       setSendStatus("OK Gmail connected successfully");
+      setTimeout(() => setSendStatus(""), 4000);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
   useEffect(() => {
@@ -432,12 +435,14 @@ function OutreachComposer() {
 
           {/* Gmail Connection */}
           {!gmailConnected ? (
-            <a
-              href="/api/auth/gmail"
-              className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-sm transition-colors mb-4 block text-center"
-            >
-              Connect Your Gmail to Send
-            </a>
+            <form action="/api/auth/gmail" method="GET" className="mb-4">
+              <button
+                type="submit"
+                className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-sm transition-colors block text-center"
+              >
+                Connect Your Gmail to Send
+              </button>
+            </form>
           ) : (
             <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 mb-4">
               <span className="text-xs text-emerald-400">Sending via: {gmailEmail}</span>
@@ -447,6 +452,7 @@ function OutreachComposer() {
                   setGmailConnected(false);
                   setGmailEmail("");
                   setSendStatus("Gmail disconnected");
+                  setTimeout(() => setSendStatus(""), 3000);
                 }}
                 className="text-xs text-emerald-400 hover:text-rose-400 underline transition-colors"
               >

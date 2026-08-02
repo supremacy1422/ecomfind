@@ -7,7 +7,6 @@ export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin;
   const cookieStore = await cookies();
 
-  // Read Supabase auth cookie manually
   const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL?.split(".")[0]?.split("//")[1] || "";
   const authCookie = cookieStore.get(`sb-${projectRef}-auth-token`);
 
@@ -25,7 +24,7 @@ export async function GET(req: NextRequest) {
       );
 
       const { data } = await supabase.auth.getUser(token);
-      if (data.user) {
+      if (data?.user) {
         accessToken = token;
         userId = data.user.id;
       }

@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
   const stateB64 = req.nextUrl.searchParams.get("state");
-  const origin = new URL("/", req.url).origin;
+  const origin = req.nextUrl.origin;
 
   if (!code || !stateB64) {
     return NextResponse.redirect(`${origin}/outreach?error=oauth_failed`);
@@ -27,10 +27,13 @@ export async function GET(req: NextRequest) {
     }
   );
 
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  const { data, error: userError } = await supabase.auth.getUser();
+  if (!data?.user || userError) {
+    console.error("Auth error:", userError);
     return NextResponse.redirect(`${origin}/outreach?error=not_logged_in`);
   }
+
+  const user = data.user;
 
   try {
     const oauth2Client = new OAuth2Client(
@@ -50,15 +53,20 @@ export async function GET(req: NextRequest) {
     );
     const userInfo = await userInfoRes.json();
 
-    await supabase.from("gmail_connections").upsert({
+    const { error: upsertError } = await supabase.from("gmail_connections").upsert({
       user_id: user.id,
       email: userInfo.email,
       refresh_token: tokens.refresh_token,
     }, { onConflict: "user_id" });
 
+    if (upsertError) {
+      console.error("Upsert error:", upsertError);
+      return NextResponse.redirect(`${origin}/outreach?error=db_error&message=${encodeURIComponent(upsertError.message)}`);
+    }
+
     return NextResponse.redirect(`${origin}/outreach?gmail=connected`);
   } catch (err: any) {
     console.error("Gmail OAuth error:", err);
-    return NextResponse.redirect(`${origin}/outreach?error=gmail_connect_failed`);
+    return NextResponse.redirect(`${origin}/outreach?error=gmail_connect_failed&message=${encodeURIComponent(err.message)}`);
   }
 }
