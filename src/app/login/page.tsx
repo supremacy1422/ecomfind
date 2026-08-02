@@ -41,13 +41,6 @@ const IconAlert = ({ className = "w-4 h-4" }: { className?: string }) => (
 export default function LoginPage() {
   const router = useRouter();
   const [redirectTo, setRedirectTo] = useState("/discover");
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      setRedirectTo(params.get("redirect") || "/discover");
-    }
-  }, []);
   
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
@@ -57,6 +50,14 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const redirect = params.get("redirect");
+      if (redirect) setRedirectTo(redirect);
+    }
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
