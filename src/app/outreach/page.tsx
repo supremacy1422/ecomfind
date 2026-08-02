@@ -9,7 +9,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-/* ─── Types ─── */
+/* Types */
 interface OutreachLog {
   id: string;
   recipient: string;
@@ -21,7 +21,7 @@ interface OutreachLog {
   scheduledFor?: string;
 }
 
-/* ─── Icons ─── */
+/* Icons */
 const IconZap = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
 );
@@ -56,7 +56,7 @@ const IconCopy = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
 );
 
-/* ─── Templates ─── */
+/* Templates */
 const TEMPLATES: Record<string, { name: string; subject: string; body: string }> = {
   audit: {
     name: "Cold Audit Outreach",
@@ -66,10 +66,10 @@ const TEMPLATES: Record<string, { name: string; subject: string; body: string }>
 I just ran a forensic revenue audit on {{domain}} and found some significant leaks that are likely costing you sales every month.
 
 Key findings:
-• Mobile load time is 4.2s (industry best: 1.1s)
-• No abandoned cart recovery flow
-• Missing structured data for Google rich snippets
-• Weak meta descriptions reducing CTR by ~22%
+- Mobile load time is 4.2s (industry best: 1.1s)
+- No abandoned cart recovery flow
+- Missing structured data for Google rich snippets
+- Weak meta descriptions reducing CTR by ~22%
 
 The good news: most of these are quick fixes. I put together a short priority list ranked by effort vs. revenue impact.
 
@@ -130,7 +130,7 @@ Talk soon,
   },
 };
 
-/* ─── Status Badge ─── */
+/* Status Badge */
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
     draft: "bg-slate-800 text-slate-400",
@@ -153,7 +153,7 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-/* ─── Inner Component (uses useSearchParams) ─── */
+/* Inner Component */
 function OutreachComposer() {
   const searchParams = useSearchParams();
   const paramEmail = searchParams.get("email") || "";
@@ -167,8 +167,8 @@ function OutreachComposer() {
   const [fromName, setFromName] = useState("");
   const [fromEmail, setFromEmail] = useState("");
   const [sending, setSending] = useState(false);
-  const [smtpConfig, setSmtpConfig] = useState<any>(null);
-  const [showSmtpModal, setShowSmtpModal] = useState(false);
+  const [gmailConnected, setGmailConnected] = useState(false);
+  const [gmailEmail, setGmailEmail] = useState("");
   const [sendStatus, setSendStatus] = useState("");
   const [scheduleMode, setScheduleMode] = useState(false);
   const [scheduleDate, setScheduleDate] = useState("");
@@ -180,6 +180,20 @@ function OutreachComposer() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null);
       if (session?.user?.email) setFromEmail(session.user.email);
+
+      if (session?.user) {
+        supabase
+          .from("gmail_connections")
+          .select("email")
+          .eq("user_id", session.user.id)
+          .single()
+          .then(({ data }) => {
+            if (data) {
+              setGmailConnected(true);
+              setGmailEmail(data.email);
+            }
+          });
+      }
     });
 
     const saved = localStorage.getItem("outreachLogs");
@@ -215,8 +229,8 @@ function OutreachComposer() {
       return;
     }
 
-    if (!smtpConfig) {
-      setShowSmtpModal(true);
+    if (!gmailConnected) {
+      setSendStatus("Connect your Gmail first");
       return;
     }
 
@@ -231,7 +245,7 @@ function OutreachComposer() {
           to: recipient,
           subject,
           body,
-          smtp: smtpConfig,
+          fromName: fromName || user?.email?.split("@")[0] || "EcomFind",
         }),
       });
 
@@ -288,7 +302,7 @@ function OutreachComposer() {
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-      {/* ─── Composer ─── */}
+      {/* Composer */}
       <div className="xl:col-span-2 space-y-6">
         <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6">
           <div className="flex items-center gap-2 mb-6">
@@ -405,18 +419,17 @@ function OutreachComposer() {
             )}
           </div>
 
-          {/* SMTP Status */}
-          {!smtpConfig ? (
-            <button
-              onClick={() => setShowSmtpModal(true)}
-              className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-sm transition-colors mb-4"
+          {/* Gmail Connection */}
+          {!gmailConnected ? (
+            <a
+              href="/api/auth/gmail"
+              className="w-full py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-sm transition-colors mb-4 block text-center"
             >
-              Connect Your Email Account to Send
-            </button>
+              Connect Your Gmail to Send
+            </a>
           ) : (
             <div className="flex items-center justify-between px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 mb-4">
-              <span className="text-xs text-emerald-400">Connected: {smtpConfig.fromEmail || smtpConfig.user}</span>
-              <button onClick={() => setShowSmtpModal(true)} className="text-xs text-emerald-400 underline">Change</button>
+              <span className="text-xs text-emerald-400">Sending via: {gmailEmail}</span>
             </div>
           )}
 
@@ -424,7 +437,7 @@ function OutreachComposer() {
           <div className="flex items-center gap-3">
             <button
               onClick={handleSend}
-              disabled={sending || !recipient || !smtpConfig}
+              disabled={sending || !recipient || !gmailConnected}
               className="flex-1 px-4 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-semibold rounded-lg text-sm flex items-center justify-center gap-2"
             >
               {sending ? (
@@ -447,15 +460,15 @@ function OutreachComposer() {
         <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-6">
           <h3 className="text-sm font-bold text-white mb-3">Outreach Tips</h3>
           <ul className="space-y-2 text-xs text-slate-400">
-            <li className="flex items-start gap-2"><span className="text-emerald-400 mt-0.5">•</span> Personalize the first line with something specific about their store.</li>
-            <li className="flex items-start gap-2"><span className="text-emerald-400 mt-0.5">•</span> Keep subject lines under 50 characters for better open rates.</li>
-            <li className="flex items-start gap-2"><span className="text-emerald-400 mt-0.5">•</span> Follow up 3-4 days after the first email if no reply.</li>
-            <li className="flex items-start gap-2"><span className="text-emerald-400 mt-0.5">•</span> Send between 8-10 AM in the recipient's timezone.</li>
+            <li className="flex items-start gap-2"><span className="text-emerald-400 mt-0.5">-</span> Personalize the first line with something specific about their store.</li>
+            <li className="flex items-start gap-2"><span className="text-emerald-400 mt-0.5">-</span> Keep subject lines under 50 characters for better open rates.</li>
+            <li className="flex items-start gap-2"><span className="text-emerald-400 mt-0.5">-</span> Follow up 3-4 days after the first email if no reply.</li>
+            <li className="flex items-start gap-2"><span className="text-emerald-400 mt-0.5">-</span> Send between 8-10 AM in the recipient's timezone.</li>
           </ul>
         </div>
       </div>
 
-      {/* ─── Sidebar ─── */}
+      {/* Sidebar */}
       <div className="space-y-6">
         {/* Stats */}
         <div className="rounded-2xl bg-slate-900/40 border border-slate-800 p-5">
@@ -512,88 +525,11 @@ function OutreachComposer() {
           )}
         </div>
       </div>
-
-      {/* ─── SMTP Connect Modal ─── */}
-      {showSmtpModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700 p-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-white mb-2">Connect Your Email</h3>
-            <p className="text-xs text-slate-400 mb-6">We send emails through YOUR account. We never store your password.</p>
-            
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-slate-400 font-medium block mb-1">SMTP Host</label>
-                <input id="smtp-host" defaultValue="smtp.gmail.com" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-slate-400 font-medium block mb-1">Port</label>
-                  <input id="smtp-port" defaultValue="465" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-400 font-medium block mb-1">Secure (SSL)</label>
-                  <select id="smtp-secure" defaultValue="true" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500">
-                    <option value="true">Yes (SSL)</option>
-                    <option value="false">No (TLS)</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 font-medium block mb-1">Email / Username</label>
-                <input id="smtp-user" type="email" placeholder="you@gmail.com" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 font-medium block mb-1">App Password</label>
-                <input id="smtp-pass" type="password" placeholder="16-character code" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
-                <p className="text-[10px] text-slate-500 mt-1">For Gmail, use an <a href="https://myaccount.google.com/apppasswords" target="_blank" className="text-violet-400 underline">App Password</a>, not your regular password.</p>
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 font-medium block mb-1">From Name</label>
-                <input id="smtp-fromName" placeholder="Your Name" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 font-medium block mb-1">From Email</label>
-                <input id="smtp-fromEmail" placeholder="you@gmail.com" className="w-full px-3 py-2 rounded-lg bg-slate-950 border border-slate-800 text-white text-sm focus:outline-none focus:border-violet-500" />
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowSmtpModal(false)}
-                className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-sm transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  const host = (document.getElementById("smtp-host") as HTMLInputElement)?.value;
-                  const port = parseInt((document.getElementById("smtp-port") as HTMLInputElement)?.value);
-                  const secure = (document.getElementById("smtp-secure") as HTMLSelectElement)?.value === "true";
-                  const user = (document.getElementById("smtp-user") as HTMLInputElement)?.value;
-                  const pass = (document.getElementById("smtp-pass") as HTMLInputElement)?.value;
-                  const fromName = (document.getElementById("smtp-fromName") as HTMLInputElement)?.value;
-                  const fromEmail = (document.getElementById("smtp-fromEmail") as HTMLInputElement)?.value;
-                  if (!host || !port || !user || !pass) {
-                    alert("Fill in all required fields");
-                    return;
-                  }
-                  setSmtpConfig({ host, port, secure, user, pass, fromName, fromEmail });
-                  setShowSmtpModal(false);
-                  setSendStatus("OK Email account connected");
-                }}
-                className="flex-1 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 text-white font-semibold text-sm transition-colors"
-              >
-                Connect
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
-/* ─── Loading fallback ─── */
+/* Loading fallback */
 function OutreachSkeleton() {
   return (
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 animate-pulse">
@@ -618,11 +554,10 @@ function OutreachSkeleton() {
   );
 }
 
-/* ─── Page Wrapper (Suspense boundary) ─── */
+/* Page Wrapper */
 export default function OutreachPage() {
   return (
     <div className="min-h-screen bg-[#0b0f1f] text-slate-200">
-      {/* Nav */}
       <header className="border-b border-slate-800/60 bg-[#0b0f1e]/80 backdrop-blur sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
