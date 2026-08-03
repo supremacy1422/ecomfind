@@ -91,14 +91,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const emailLines = [
+    // ─── UTF-8 ENCODED EMAIL ───
+    const emailContent = [
+      "MIME-Version: 1.0",
+      "Content-Type: text/plain; charset=UTF-8",
+      "Content-Transfer-Encoding: base64",
       `From: ${fromName || "EcomFind"} <${conn.email}>`,
       `To: ${to}`,
-      `Subject: ${subject}`,
+      `Subject: =?UTF-8?B?${Buffer.from(subject).toString("base64")}?=`,
       "",
-      body,
-    ];
-    const rawEmail = Buffer.from(emailLines.join("\r\n"))
+      Buffer.from(body).toString("base64"),
+    ].join("\r\n");
+
+    const rawEmail = Buffer.from(emailContent)
       .toString("base64")
       .replace(/\+/g, "-")
       .replace(/\//g, "_")
