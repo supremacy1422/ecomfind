@@ -16,9 +16,7 @@ export default function NavHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950/80 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <Link href="/" className="text-lg font-bold text-white tracking-tight">
-          RevenueAI
-        </Link>
+        <a href="/"><img src="/ecomfind_logo.png" alt="EcomFind" style={{ height: '32px', width: 'auto' }} /></a>
         <nav className="flex items-center gap-1">
           {nav.map((n) => {
             const active = pathname === n.href;

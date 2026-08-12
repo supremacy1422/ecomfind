@@ -21,7 +21,7 @@ function checkRateLimit(userId: string): boolean {
 
 export async function POST(req: NextRequest) {
   try {
-    const { to, subject, body, fromName } = await req.json();
+    const { to, subject, body, fromName, connectionId } = await req.json();
     if (!to || !subject || !body) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
@@ -49,34 +49,50 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const today = new Date().toISOString().split("T")[0];
-    const { count: sentToday } = await supabase
-      .from("email_send_logs")
-      .select("*", { count: "exact", head: true })
+    // ─── Find Gmail connection ───
+    let query = supabase
+      .from("gmail_connections")
+      .select("id, email, refresh_token, daily_limit, sent_today, reset_date, is_active")
       .eq("user_id", user.id)
-      .gte("sent_at", `${today}T00:00:00`)
-      .lte("sent_at", `${today}T23:59:59`);
+      .eq("is_active", true);
 
-    if ((sentToday || 0) >= 450) {
-      return NextResponse.json(
-        { error: "Daily limit reached (450/500). Try again tomorrow or use a different Gmail." },
-        { status: 429 }
-      );
+    // If connectionId provided (from campaign system), use that specific one
+    if (connectionId) {
+      query = query.eq("id", connectionId);
     }
 
-    const { data: conn } = await supabase
-      .from("gmail_connections")
-      .select("email, refresh_token")
-      .eq("user_id", user.id)
-      .single();
-
-    if (!conn) {
+    const { data: connections } = await query;
+    
+    if (!connections?.length) {
       return NextResponse.json(
-        { error: "Connect your Gmail first" },
+        { error: "No active Gmail connections found. Connect Gmail first." },
         { status: 400 }
       );
     }
 
+    // Pick first available connection (or the specific one requested)
+    const conn = connections[0];
+
+    // ─── Check daily limit ───
+    const today = new Date().toISOString().split("T")[0];
+    
+    // Reset counter if it's a new day
+    if (conn.reset_date !== today) {
+      await supabase
+        .from("gmail_connections")
+        .update({ sent_today: 0, reset_date: today })
+        .eq("id", conn.id);
+      conn.sent_today = 0;
+    }
+
+    if ((conn.sent_today || 0) >= (conn.daily_limit || 100)) {
+      return NextResponse.json(
+        { error: `Daily limit reached (${conn.sent_today}/${conn.daily_limit}) for ${conn.email}. Try another Gmail or wait until tomorrow.` },
+        { status: 429 }
+      );
+    }
+
+    // ─── Send via Gmail API ───
     const oauth2Client = new OAuth2Client(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET
@@ -96,7 +112,7 @@ export async function POST(req: NextRequest) {
 
     const rawMessage = [
       "MIME-Version: 1.0",
-      "Content-Type: text/plain; charset=UTF-8",
+      "Content-Type: text/html; charset=UTF-8",
       "Content-Transfer-Encoding: 8bit",
       `From: ${fromName || "EcomFind"} <${conn.email}>`,
       `To: ${to}`,
@@ -132,6 +148,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // ─── Update sent counter ───
+    await supabase
+      .from("gmail_connections")
+      .update({ sent_today: (conn.sent_today || 0) + 1 })
+      .eq("id", conn.id);
+
+    // ─── Log to email_send_logs ───
     await supabase.from("email_send_logs").insert({
       user_id: user.id,
       recipient: to,
@@ -139,7 +162,11 @@ export async function POST(req: NextRequest) {
       sent_at: new Date().toISOString(),
     });
 
-    return NextResponse.json({ success: true, sentToday: (sentToday || 0) + 1 });
+    return NextResponse.json({ 
+      success: true, 
+      sentToday: (conn.sent_today || 0) + 1,
+      fromEmail: conn.email 
+    });
   } catch (err: any) {
     console.error("Send error:", err);
     return NextResponse.json(
