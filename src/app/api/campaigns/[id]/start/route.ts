@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  
   const token = req.headers.get("x-supabase-token");
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -17,7 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const { error } = await supabase
     .from("campaigns")
     .update({ status: "sending", started_at: new Date().toISOString() })
-    .eq("id", params.id)
+    .eq("id", id)
     .eq("user_id", user.id);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
