@@ -19,6 +19,9 @@ const IconEye = ({ className = "w-4 h-4" }: { className?: string }) => (
 const IconUsers = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
 );
+const IconMenu = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+);
 
 interface Campaign {
   id: string;
@@ -45,6 +48,7 @@ export default function BulkCampaignsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [dragOver, setDragOver] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [mobileMenu, setMobileMenu] = useState(false);
 
   const [name, setName] = useState("");
   const [subject, setSubject] = useState("");
@@ -167,22 +171,40 @@ export default function BulkCampaignsPage() {
 
   return (
     <div className="min-h-screen bg-[#0b0f1f] text-slate-200">
+      {/* ─── Header ─── */}
       <header className="border-b border-slate-800/60 bg-[#0b0f1e]/80 backdrop-blur sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <a href="/" className="flex items-center">
             <img src="/ecomfind_logo.png" alt="EcomFind" className="h-8 w-auto" />
           </a>
+
+          {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-1">
             <a href="/discover" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Audit</a>
             <a href="/leads" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Leads</a>
             <a href="/bulk-campaigns" className="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-sm transition-colors">Campaigns</a>
             <a href="/gmail-connections" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Gmail</a>
           </nav>
+
+          {/* Mobile Hamburger */}
+          <button onClick={() => setMobileMenu(!mobileMenu)} className="md:hidden p-2 text-slate-400">
+            <IconMenu className="w-6 h-6" />
+          </button>
         </div>
+
+        {/* Mobile Menu */}
+        {mobileMenu && (
+          <div className="md:hidden border-t border-slate-800 bg-[#0b0f1e]/95 px-4 py-4 space-y-2">
+            <a href="/discover" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">Audit</a>
+            <a href="/leads" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">Leads</a>
+            <a href="/bulk-campaigns" className="block px-3 py-2 rounded-lg bg-slate-800 text-white text-sm">Campaigns</a>
+            <a href="/gmail-connections" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">Gmail</a>
+          </div>
+        )}
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-10">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-bold text-white mb-1">Bulk Campaigns</h1>
             <p className="text-sm text-slate-400">Upload up to 20K contacts and send with multiple Gmail accounts.</p>
@@ -201,17 +223,17 @@ export default function BulkCampaignsPage() {
         ) : (
           <div className="space-y-4">
             {campaigns.map((camp) => (
-              <div key={camp.id} className="rounded-xl bg-slate-900/40 border border-slate-800 p-6">
+              <div key={camp.id} className="rounded-xl bg-slate-900/40 border border-slate-800 p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-3 mb-1">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-3 mb-1 flex-wrap">
                       <h3 className="text-white font-bold">{camp.name}</h3>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${getStatusColor(camp.status)}`}>
                         {camp.status}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 mb-2">{camp.subject}</p>
-                    <div className="flex items-center gap-4 text-xs text-slate-500">
+                    <p className="text-xs text-slate-500 mb-2 truncate">{camp.subject}</p>
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
                       <span>{camp.total_recipients.toLocaleString()} recipients</span>
                       <span>{camp.sent_count.toLocaleString()} sent</span>
                       <span>{camp.opened_count.toLocaleString()} opened</span>
@@ -219,7 +241,7 @@ export default function BulkCampaignsPage() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {camp.status === "draft" && (
                       <button onClick={() => controlCampaign(camp.id, "start")} className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5">
                         <IconPlay className="w-3 h-3" /> Start

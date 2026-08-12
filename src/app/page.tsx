@@ -130,6 +130,7 @@ export default function HomePage() {
             <a href="/leads" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Leads</a>
             <a href="/outreach" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Outreach</a>
             <a href="/bulk-outreach" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Bulk</a>
+            <a href="/gmail-connections" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Gmail</a>
             <a href="/dashboard" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Dashboard</a>
             <a href="/about" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">About</a>
             <a href="/founder" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Founder</a>
@@ -152,6 +153,7 @@ export default function HomePage() {
             <a href="/discover" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">Audit</a>
             <a href="/leads" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">Leads</a>
             <a href="/outreach" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">Outreach</a>
+            <a href="/gmail-connections" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">Gmail</a>
             <a href="/about" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">About</a>
             <div className="pt-2 border-t border-slate-800 flex gap-3">
               <a href="/login" className="flex-1 text-center py-2 text-sm text-slate-300 border border-slate-700 rounded-lg">Sign In</a>

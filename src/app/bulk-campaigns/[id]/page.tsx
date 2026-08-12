@@ -4,6 +4,10 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 
+const IconMenu = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+);
+
 interface Recipient {
   id: string;
   email: string;
@@ -31,6 +35,7 @@ export default function CampaignDetailPage() {
   const { id } = useParams();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [filter, setFilter] = useState("all");
+  const [mobileMenu, setMobileMenu] = useState(false);
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -60,13 +65,36 @@ export default function CampaignDetailPage() {
 
   return (
     <div className="min-h-screen bg-[#0b0f1f] text-slate-200">
+      {/* ─── Header ─── */}
       <header className="border-b border-slate-800/60 bg-[#0b0f1e]/80 backdrop-blur sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <a href="/" className="flex items-center">
             <img src="/ecomfind_logo.png" alt="EcomFind" className="h-8 w-auto" />
           </a>
-          <a href="/bulk-campaigns" className="text-sm text-slate-400 hover:text-white transition-colors">← Back to Campaigns</a>
+
+          {/* Desktop Nav */}
+          <nav className="hidden md:flex items-center gap-1">
+            <a href="/discover" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Audit</a>
+            <a href="/leads" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Leads</a>
+            <a href="/bulk-campaigns" className="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-sm transition-colors">Campaigns</a>
+            <a href="/gmail-connections" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Gmail</a>
+          </nav>
+
+          {/* Mobile Hamburger */}
+          <button onClick={() => setMobileMenu(!mobileMenu)} className="md:hidden p-2 text-slate-400">
+            <IconMenu className="w-6 h-6" />
+          </button>
         </div>
+
+        {/* Mobile Menu */}
+        {mobileMenu && (
+          <div className="md:hidden border-t border-slate-800 bg-[#0b0f1e]/95 px-4 py-4 space-y-2">
+            <a href="/discover" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">Audit</a>
+            <a href="/leads" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">Leads</a>
+            <a href="/bulk-campaigns" className="block px-3 py-2 rounded-lg bg-slate-800 text-white text-sm">Campaigns</a>
+            <a href="/gmail-connections" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">Gmail</a>
+          </div>
+        )}
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-10">
@@ -94,7 +122,7 @@ export default function CampaignDetailPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
           {["all", "sent", "opened", "failed"].map((f) => (
             <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filter === f ? "bg-slate-700 text-white" : "text-slate-500 hover:text-white"}`}>
               {f[0].toUpperCase() + f.slice(1)}
@@ -102,37 +130,40 @@ export default function CampaignDetailPage() {
           ))}
         </div>
 
+        {/* Scrollable table container for mobile */}
         <div className="rounded-xl bg-slate-900/40 border border-slate-800 overflow-hidden">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950/50 text-slate-500 uppercase tracking-wider">
-              <tr>
-                <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Sent</th>
-                <th className="px-4 py-3">Opens</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/50">
-              {filtered.slice(0, 100).map((r) => (
-                <tr key={r.id} className="hover:bg-slate-800/30">
-                  <td className="px-4 py-3 text-slate-300">{r.email}</td>
-                  <td className="px-4 py-3 text-slate-400">{r.first_name} {r.last_name}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                      r.status === "sent" ? "bg-emerald-500/10 text-emerald-400" :
-                      r.status === "failed" ? "bg-rose-500/10 text-rose-400" :
-                      "bg-slate-800 text-slate-500"
-                    }`}>{r.status}</span>
-                  </td>
-                  <td className="px-4 py-3 text-slate-500">{r.sent_at ? new Date(r.sent_at).toLocaleDateString() : "-"}</td>
-                  <td className="px-4 py-3">
-                    {r.open_count > 0 ? <span className="text-violet-400">{r.open_count} opens</span> : <span className="text-slate-600">-</span>}
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs min-w-[600px]">
+              <thead className="bg-slate-950/50 text-slate-500 uppercase tracking-wider">
+                <tr>
+                  <th className="px-4 py-3">Email</th>
+                  <th className="px-4 py-3">Name</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Sent</th>
+                  <th className="px-4 py-3">Opens</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-800/50">
+                {filtered.slice(0, 100).map((r) => (
+                  <tr key={r.id} className="hover:bg-slate-800/30">
+                    <td className="px-4 py-3 text-slate-300">{r.email}</td>
+                    <td className="px-4 py-3 text-slate-400">{r.first_name} {r.last_name}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                        r.status === "sent" ? "bg-emerald-500/10 text-emerald-400" :
+                        r.status === "failed" ? "bg-rose-500/10 text-rose-400" :
+                        "bg-slate-800 text-slate-500"
+                      }`}>{r.status}</span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500">{r.sent_at ? new Date(r.sent_at).toLocaleDateString() : "-"}</td>
+                    <td className="px-4 py-3">
+                      {r.open_count > 0 ? <span className="text-violet-400">{r.open_count} opens</span> : <span className="text-slate-600">-</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           {filtered.length > 100 && (
             <div className="px-4 py-3 text-xs text-slate-600 text-center border-t border-slate-800">
               Showing first 100 of {filtered.length} recipients
