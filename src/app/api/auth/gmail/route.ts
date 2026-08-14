@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
 
   if (!token) {
-    return NextResponse.redirect(`${origin}/login?redirect=/outreach`);
+    return NextResponse.redirect(`${origin}/login?redirect=/gmail-connections`);
   }
 
   const supabase = createClient(
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 
   const { data } = await supabase.auth.getUser(token);
   if (!data?.user) {
-    return NextResponse.redirect(`${origin}/login?redirect=/outreach`);
+    return NextResponse.redirect(`${origin}/login?redirect=/gmail-connections`);
   }
 
   const oauth2Client = new OAuth2Client(
@@ -32,7 +32,10 @@ export async function GET(req: NextRequest) {
 
   const url = oauth2Client.generateAuthUrl({
     access_type: "offline",
-    scope: ["https://www.googleapis.com/auth/gmail.send"],
+    scope: [
+      "https://www.googleapis.com/auth/gmail.send",
+      "https://www.googleapis.com/auth/gmail.readonly",
+    ],
     prompt: "consent select_account",
     state,
   });

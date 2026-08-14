@@ -3,70 +3,103 @@ import { OAuth2Client } from "google-auth-library";
 import { createClient } from "@supabase/supabase-js";
 
 export async function GET(req: NextRequest) {
-  const code = req.nextUrl.searchParams.get("code");
-  const stateB64 = req.nextUrl.searchParams.get("state");
   const origin = req.nextUrl.origin;
 
-  if (!code || !stateB64) {
-    return NextResponse.redirect(`${origin}/outreach?error=oauth_failed`);
-  }
-
-  let accessToken: string;
   try {
-    const state = JSON.parse(Buffer.from(stateB64, "base64url").toString());
-    accessToken = state.access_token;
-  } catch {
-    return NextResponse.redirect(`${origin}/outreach?error=invalid_state`);
-  }
+    const code = req.nextUrl.searchParams.get("code");
+    const state = req.nextUrl.searchParams.get("state");
+    const googleError = req.nextUrl.searchParams.get("error");
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      global: { headers: { Authorization: `Bearer ${accessToken}` } },
+    if (googleError) {
+      return NextResponse.redirect(`${origin}/gmail-connections?error=google_denied`);
     }
-  );
+    if (!code || !state) {
+      return NextResponse.redirect(`${origin}/gmail-connections?error=missing_params`);
+    }
 
-  const { data, error: userError } = await supabase.auth.getUser();
-  if (!data?.user || userError) {
-    console.error("Auth error:", userError);
-    return NextResponse.redirect(`${origin}/outreach?error=not_logged_in`);
-  }
+    let parsedState: { access_token: string };
+    try {
+      parsedState = JSON.parse(Buffer.from(state, "base64url").toString());
+    } catch {
+      return NextResponse.redirect(`${origin}/gmail-connections?error=bad_state`);
+    }
 
-  const user = data.user;
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
 
-  try {
+    const { data: userData, error: userErr } = await supabase.auth.getUser(parsedState.access_token);
+    if (userErr || !userData?.user) {
+      return NextResponse.redirect(`${origin}/gmail-connections?error=invalid_session`);
+    }
+
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      return NextResponse.redirect(`${origin}/gmail-connections?error=missing_env`);
+    }
+
     const oauth2Client = new OAuth2Client(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
       `${origin}/api/auth/gmail/callback`
     );
 
-    const { tokens } = await oauth2Client.getToken(code);
+    let tokens;
+    try {
+      const tokenRes = await oauth2Client.getToken(code);
+      tokens = tokenRes.tokens;
+    } catch (tokenErr: any) {
+      console.error("Token exchange failed:", tokenErr.message);
+      return NextResponse.redirect(`${origin}/gmail-connections?error=token_exchange`);
+    }
+
     if (!tokens.refresh_token) {
-      throw new Error("No refresh token received");
+      return NextResponse.redirect(`${origin}/gmail-connections?error=no_refresh_token`);
     }
 
-    // Use the email from Supabase auth (they logged in with Google)
-    const email = user.email;
-    if (!email) {
-      return NextResponse.redirect(`${origin}/outreach?error=no_email&message=No+email+on+user+account`);
+    // Get email from ID token
+    let email = "unknown";
+    let displayName = "Unknown";
+    try {
+      if (tokens.id_token) {
+        const ticket = await oauth2Client.verifyIdToken({
+          idToken: tokens.id_token,
+          audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        const payload = ticket.getPayload();
+        email = payload?.email || "unknown";
+        displayName = payload?.name || email.split("@")[0];
+      }
+    } catch (idErr: any) {
+      console.error("ID token verify failed:", idErr.message);
+      // Non-fatal — continue with "unknown"
     }
 
-    const { error: upsertError } = await supabase.from("gmail_connections").upsert({
-      user_id: user.id,
-      email,
-      refresh_token: tokens.refresh_token,
-    }, { onConflict: "user_id" });
+    // Save to Supabase
+    try {
+      const { error: dbErr } = await supabase.from("gmail_accounts").upsert({
+        user_id: userData.user.id,
+        email,
+        refresh_token: tokens.refresh_token,
+        access_token: tokens.access_token || null,
+        expires_at: tokens.expiry_date ? new Date(tokens.expiry_date).toISOString() : null,
+        display_name: displayName,
+        is_active: true,
+        is_default: false,
+      }, { onConflict: "user_id,email" });
 
-    if (upsertError) {
-      console.error("Upsert error:", upsertError);
-      return NextResponse.redirect(`${origin}/outreach?error=db_error&message=${encodeURIComponent(upsertError.message)}`);
+      if (dbErr) {
+        console.error("DB upsert failed:", dbErr.message);
+        return NextResponse.redirect(`${origin}/gmail-connections?error=db_error&message=${encodeURIComponent(dbErr.message)}`);
+      }
+    } catch (dbCatch: any) {
+      console.error("DB exception:", dbCatch.message);
+      return NextResponse.redirect(`${origin}/gmail-connections?error=db_exception&message=${encodeURIComponent(dbCatch.message)}`);
     }
 
-    return NextResponse.redirect(`${origin}/outreach?gmail=connected`);
+    return NextResponse.redirect(`${origin}/gmail-connections?success=connected`);
   } catch (err: any) {
-    console.error("Gmail OAuth error:", err);
-    return NextResponse.redirect(`${origin}/outreach?error=gmail_connect_failed&message=${encodeURIComponent(err.message)}`);
+    console.error("Unhandled callback error:", err.message);
+    return NextResponse.redirect(`${origin}/gmail-connections?error=unknown&message=${encodeURIComponent(err.message)}`);
   }
 }

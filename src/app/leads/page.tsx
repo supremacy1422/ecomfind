@@ -105,6 +105,12 @@ const IconPencil = ({ className = "w-4 h-4" }: { className?: string }) => (
 const IconHistory = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
 );
+const IconClock = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+);
+const IconRefresh = ({ className = "w-4 h-4" }: { className?: string }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+);
 
 interface Lead {
   id: string;
@@ -167,6 +173,14 @@ export default function LeadsPage() {
   const [drawerScore, setDrawerScore] = useState<number | undefined>(undefined);
   const [drawerSaving, setDrawerSaving] = useState(false);
   const [drawerActivities, setDrawerActivities] = useState<Activity[]>([]);
+
+  /* ─── Enroll Modal State ─── */
+  const [enrollModal, setEnrollModal] = useState<{ open: boolean; leadIds: string[] }>({ open: false, leadIds: [] });
+  const [sequences, setSequences] = useState<any[]>([]);
+  const [selectedSequence, setSelectedSequence] = useState("");
+  const [selectedSender, setSelectedSender] = useState("");
+  const [senders, setSenders] = useState<any[]>([]);
+  const [enrolling, setEnrolling] = useState(false);
 
   useEffect(() => {
     fetchLeads();
@@ -328,136 +342,130 @@ export default function LeadsPage() {
   };
 
   const parseAndImport = async (text: string) => {
-  setImportError("");
-  const parsed = parseCSV(text);
-  if (parsed.length < 2) {
-    setImportError("CSV needs at least a header row + one data row. Make sure your file has column names on the first line.");
-    return;
-  }
-
-  const headers = parsed[0].map((h) => h.toLowerCase().trim().replace(/^["']|["']$/g, ""));
-  const getCol = (names: string[]) => {
-    for (const n of names) {
-      const i = headers.indexOf(n.toLowerCase());
-      if (i !== -1) return i;
+    setImportError("");
+    const parsed = parseCSV(text);
+    if (parsed.length < 2) {
+      setImportError("CSV needs at least a header row + one data row. Make sure your file has column names on the first line.");
+      return;
     }
-    return -1;
-  };
 
-  const domainIdx = getCol(["domain", "store_name", "store name", "name", "url", "website", "site", "store_url"]);
-  const emailIdx = getCol([
-    "validatedemail1", "validatedemail2", "validatedemail3",
-    "email1", "email2", "email3",
-    "validatedemailfromurl1", "validatedemailfromurl2", "validatedemailfromurl3",
-    "emailfromurl1", "emailfromurl2", "emailfromurl3",
-    "email", "e-mail", "contact_email", "contact email"
-  ]);
-  const countryIdx = getCol(["language", "country"]);
-  const industryIdx = getCol(["maincategories", "main_categories", "category", "industry"]);
-  const nameIdx = getCol(["name", "store_name", "store name", "storename", "domain"]);
-  const activityIdx = getCol(["productschangeactivity", "activity"]);
-  const phone1Idx = getCol(["phone1"]);
-  const phone2Idx = getCol(["phone2"]);
-  const fbIdx = getCol(["facebook"]);
-  const igIdx = getCol(["instagram"]);
-  const twIdx = getCol(["twitter"]);
-  const ytIdx = getCol(["youtube"]);
-  const ttIdx = getCol(["tiktok"]);
-  const ptIdx = getCol(["pinterest"]);
-  const liIdx = getCol(["linkedin"]);
-  const addrIdx = getCol(["address"]);
-  const addrPageIdx = getCol(["addressfrompage"]);
+    const headers = parsed[0].map((h) => h.toLowerCase().trim().replace(/^["']|["']$/g, ""));
+    const getCol = (names: string[]) => {
+      for (const n of names) {
+        const i = headers.indexOf(n.toLowerCase());
+        if (i !== -1) return i;
+      }
+      return -1;
+    };
 
-  if (domainIdx === -1 && emailIdx === -1) {
-    setImportError("Need domain/store_name or email column.");
-    return;
-  }
+    const domainIdx = getCol(["domain", "store_name", "store name", "name", "url", "website", "site", "store_url"]);
+    const emailIdx = getCol([
+      "validatedemail1", "validatedemail2", "validatedemail3",
+      "email1", "email2", "email3",
+      "validatedemailfromurl1", "validatedemailfromurl2", "validatedemailfromurl3",
+      "emailfromurl1", "emailfromurl2", "emailfromurl3",
+      "email", "e-mail", "contact_email", "contact email"
+    ]);
+    const countryIdx = getCol(["language", "country"]);
+    const industryIdx = getCol(["maincategories", "main_categories", "category", "industry"]);
+    const nameIdx = getCol(["name", "store_name", "store name", "storename", "domain"]);
+    const activityIdx = getCol(["productschangeactivity", "activity"]);
+    const phone1Idx = getCol(["phone1"]);
+    const phone2Idx = getCol(["phone2"]);
+    const fbIdx = getCol(["facebook"]);
+    const igIdx = getCol(["instagram"]);
+    const twIdx = getCol(["twitter"]);
+    const ytIdx = getCol(["youtube"]);
+    const ttIdx = getCol(["tiktok"]);
+    const ptIdx = getCol(["pinterest"]);
+    const liIdx = getCol(["linkedin"]);
+    const addrIdx = getCol(["address"]);
+    const addrPageIdx = getCol(["addressfrompage"]);
 
-  let imported = 0;
-  for (let i = 1; i < parsed.length; i++) {
-    const vals = parsed[i];
-    const domain = domainIdx !== -1 ? vals[domainIdx]?.trim() : "";
-    let email = emailIdx !== -1 ? vals[emailIdx]?.trim() : "";
-    const country = countryIdx !== -1 ? vals[countryIdx]?.trim() : "";
-    let industry = industryIdx !== -1 ? vals[industryIdx]?.trim() : "";
-    const name = nameIdx !== -1 ? vals[nameIdx]?.trim() : "";
-    const activity = activityIdx !== -1 ? vals[activityIdx]?.trim() : "";
-    const phone1 = phone1Idx !== -1 ? vals[phone1Idx]?.trim() : "";
-    const phone2 = phone2Idx !== -1 ? vals[phone2Idx]?.trim() : "";
+    if (domainIdx === -1 && emailIdx === -1) {
+      setImportError("Need domain/store_name or email column.");
+      return;
+    }
 
-    // Parse mainCategories JSON array
-    if (industry && industry.startsWith("[")) {
-      try {
-        const parsedCats = JSON.parse(industry.replace(/""/g, '"'));
-        if (Array.isArray(parsedCats) && parsedCats.length > 0) {
-          industry = parsedCats[0];
+    let imported = 0;
+    for (let i = 1; i < parsed.length; i++) {
+      const vals = parsed[i];
+      const domain = domainIdx !== -1 ? vals[domainIdx]?.trim() : "";
+      let email = emailIdx !== -1 ? vals[emailIdx]?.trim() : "";
+      const country = countryIdx !== -1 ? vals[countryIdx]?.trim() : "";
+      let industry = industryIdx !== -1 ? vals[industryIdx]?.trim() : "";
+      const name = nameIdx !== -1 ? vals[nameIdx]?.trim() : "";
+      const activity = activityIdx !== -1 ? vals[activityIdx]?.trim() : "";
+      const phone1 = phone1Idx !== -1 ? vals[phone1Idx]?.trim() : "";
+      const phone2 = phone2Idx !== -1 ? vals[phone2Idx]?.trim() : "";
+
+      if (industry && industry.startsWith("[")) {
+        try {
+          const parsedCats = JSON.parse(industry.replace(/""/g, '"'));
+          if (Array.isArray(parsedCats) && parsedCats.length > 0) {
+            industry = parsedCats[0];
+          }
+        } catch {
+          // keep raw
         }
-      } catch {
-        // keep raw
+      }
+
+      if (!domain && !email) continue;
+
+      const storeName = name || domain || "Unknown";
+      const storeUrl = domain ? (domain.startsWith("http") ? domain : `https://${domain}`) : "";
+
+      const extraNotes: string[] = [];
+      if (country) extraNotes.push(`Country: ${country}`);
+      if (industry) extraNotes.push(`Industry: ${industry}`);
+      if (activity) extraNotes.push(`Activity: ${activity}`);
+      if (phone1) extraNotes.push(`Phone: ${phone1}`);
+      if (phone2) extraNotes.push(`Phone 2: ${phone2}`);
+      if (fbIdx !== -1 && vals[fbIdx]?.trim()) extraNotes.push(`Facebook: ${vals[fbIdx].trim()}`);
+      if (igIdx !== -1 && vals[igIdx]?.trim()) extraNotes.push(`Instagram: ${vals[igIdx].trim()}`);
+      if (twIdx !== -1 && vals[twIdx]?.trim()) extraNotes.push(`Twitter: ${vals[twIdx].trim()}`);
+      if (ytIdx !== -1 && vals[ytIdx]?.trim()) extraNotes.push(`YouTube: ${vals[ytIdx].trim()}`);
+      if (ttIdx !== -1 && vals[ttIdx]?.trim()) extraNotes.push(`TikTok: ${vals[ttIdx].trim()}`);
+      if (ptIdx !== -1 && vals[ptIdx]?.trim()) extraNotes.push(`Pinterest: ${vals[ptIdx].trim()}`);
+      if (liIdx !== -1 && vals[liIdx]?.trim()) extraNotes.push(`LinkedIn: ${vals[liIdx].trim()}`);
+      if (addrIdx !== -1 && vals[addrIdx]?.trim()) extraNotes.push(`Address: ${vals[addrIdx].trim()}`);
+      if (addrPageIdx !== -1 && vals[addrPageIdx]?.trim()) extraNotes.push(`Address Page: ${vals[addrPageIdx].trim()}`);
+
+      const row: any = {
+        store_name: storeName,
+        store_url: storeUrl,
+        email: email || null,
+        status: "new",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const { data: existing } = await supabase.from("leads").select("id,notes").eq("store_url", row.store_url).maybeSingle();
+      if (existing) {
+        const existingNotes = existing.notes || "";
+        const newNoteLines = extraNotes.filter((line) => !existingNotes.includes(line));
+        const mergedNotes = newNoteLines.length > 0
+          ? [existingNotes, ...newNoteLines].filter(Boolean).join("\n")
+          : existingNotes;
+        await supabase.from("leads").update({ ...row, notes: mergedNotes, updated_at: new Date().toISOString() }).eq("id", existing.id);
+        imported++;
+      } else {
+        if (extraNotes.length > 0) row.notes = extraNotes.join("\n");
+        const { error } = await supabase.from("leads").insert(row);
+        if (!error) imported++;
       }
     }
 
-    if (!domain && !email) continue;
-
-    const storeName = name || domain || "Unknown";
-    const storeUrl = domain ? (domain.startsWith("http") ? domain : `https://${domain}`) : "";
-
-    // Build rich notes
-    const extraNotes: string[] = [];
-    if (country) extraNotes.push(`Country: ${country}`);
-    if (industry) extraNotes.push(`Industry: ${industry}`);
-    if (activity) extraNotes.push(`Activity: ${activity}`);
-    if (phone1) extraNotes.push(`Phone: ${phone1}`);
-    if (phone2) extraNotes.push(`Phone 2: ${phone2}`);
-    if (fbIdx !== -1 && vals[fbIdx]?.trim()) extraNotes.push(`Facebook: ${vals[fbIdx].trim()}`);
-    if (igIdx !== -1 && vals[igIdx]?.trim()) extraNotes.push(`Instagram: ${vals[igIdx].trim()}`);
-    if (twIdx !== -1 && vals[twIdx]?.trim()) extraNotes.push(`Twitter: ${vals[twIdx].trim()}`);
-    if (ytIdx !== -1 && vals[ytIdx]?.trim()) extraNotes.push(`YouTube: ${vals[ytIdx].trim()}`);
-    if (ttIdx !== -1 && vals[ttIdx]?.trim()) extraNotes.push(`TikTok: ${vals[ttIdx].trim()}`);
-    if (ptIdx !== -1 && vals[ptIdx]?.trim()) extraNotes.push(`Pinterest: ${vals[ptIdx].trim()}`);
-    if (liIdx !== -1 && vals[liIdx]?.trim()) extraNotes.push(`LinkedIn: ${vals[liIdx].trim()}`);
-    if (addrIdx !== -1 && vals[addrIdx]?.trim()) extraNotes.push(`Address: ${vals[addrIdx].trim()}`);
-    if (addrPageIdx !== -1 && vals[addrPageIdx]?.trim()) extraNotes.push(`Address Page: ${vals[addrPageIdx].trim()}`);
-
-    const row: any = {
-      store_name: storeName,
-      store_url: storeUrl,
-      email: email || null,
-      status: "new",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    // Uncomment these two lines if your Supabase table has country & industry columns:
-    // if (country) row.country = country;
-    // if (industry) row.industry = industry;
-
-    const { data: existing } = await supabase.from("leads").select("id,notes").eq("store_url", row.store_url).maybeSingle();
-    if (existing) {
-      const existingNotes = existing.notes || "";
-      const newNoteLines = extraNotes.filter((line) => !existingNotes.includes(line));
-      const mergedNotes = newNoteLines.length > 0
-        ? [existingNotes, ...newNoteLines].filter(Boolean).join("\n")
-        : existingNotes;
-      await supabase.from("leads").update({ ...row, notes: mergedNotes, updated_at: new Date().toISOString() }).eq("id", existing.id);
-      imported++;
-    } else {
-      if (extraNotes.length > 0) row.notes = extraNotes.join("\n");
-      const { error } = await supabase.from("leads").insert(row);
-      if (!error) imported++;
+    if (imported === 0) {
+      setImportError("No valid rows imported. Check that your CSV has expected columns (domain, name, email1, validatedEmail1, mainCategories, language).");
+      return;
     }
-  }
+    setShowImport(false);
+    setImportText("");
+    fetchLeads();
+  };
 
-  if (imported === 0) {
-    setImportError("No valid rows imported. Check that your CSV has expected columns (domain, name, email1, validatedEmail1, mainCategories, language).");
-    return;
-  }
-  setShowImport(false);
-  setImportText("");
-  fetchLeads();
-};
-
-const downloadCSV = () => {
+  const downloadCSV = () => {
     const headers = ["store_name", "store_url", "email", "score", "status", "notes", "created_at"];
     const rows = filteredLeads.map((l) =>
       [l.store_name || "", l.store_url || "", l.email || "", l.score || "", l.status || "", l.notes || "", l.created_at || ""]
@@ -495,7 +503,6 @@ const downloadCSV = () => {
     setDrawerNotes(lead.notes || "");
     setDrawerStatus(lead.status || "new");
     setDrawerScore(lead.score);
-    // Load outreach activities for this lead
     const saved = localStorage.getItem("ecomfind_outreach_log");
     let acts: Activity[] = [];
     if (saved) {
@@ -539,6 +546,57 @@ const downloadCSV = () => {
     { value: "won", label: "Won", color: "text-emerald-400" },
     { value: "lost", label: "Lost", color: "text-rose-400" },
   ];
+
+  /* ─── Enroll Functions ─── */
+  const openEnroll = async (leadIds: string[]) => {
+    const { data: session } = await supabase.auth.getSession();
+    const token = session?.session?.access_token;
+    if (!token) {
+      alert("Please sign in first.");
+      return;
+    }
+
+    const [seqRes, senderRes] = await Promise.all([
+      fetch("/api/follow-ups/sequences", { headers: { Authorization: `Bearer ${token}` } }),
+      supabase.from("gmail_accounts").select("email, display_name").eq("is_active", true),
+    ]);
+
+    const seqJson = await seqRes.json();
+    setSequences(seqJson.sequences || []);
+    setSenders(senderRes.data || []);
+    setSelectedSequence(seqJson.sequences?.[0]?.id || "");
+    setSelectedSender(senderRes.data?.[0]?.email || "");
+    setEnrollModal({ open: true, leadIds });
+  };
+
+  const confirmEnroll = async () => {
+    if (!selectedSequence || !selectedSender) {
+      alert("Select a sequence and sender.");
+      return;
+    }
+    setEnrolling(true);
+    const { data: session } = await supabase.auth.getSession();
+    const res = await fetch("/api/follow-ups/enroll", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session?.session?.access_token}`,
+      },
+      body: JSON.stringify({
+        lead_ids: enrollModal.leadIds,
+        sequence_id: selectedSequence,
+        sender_email: selectedSender,
+      }),
+    });
+    setEnrolling(false);
+    if (res.ok) {
+      setEnrollModal({ open: false, leadIds: [] });
+      alert("Enrolled in follow-up sequence!");
+    } else {
+      const err = await res.json();
+      alert(err.error || "Failed to enroll.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#0b0f1f] text-slate-200">
@@ -585,7 +643,6 @@ const downloadCSV = () => {
             {siImportCount > 0 && <span className="ml-auto text-xs text-emerald-400">✓ {siImportCount} imported</span>}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4">
-            {/* ─── 80 PROFITABLE COUNTRIES ─── */}
             <div>
               <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">Country</label>
               <select
@@ -598,7 +655,6 @@ const downloadCSV = () => {
                   <option value="CA">Canada</option>
                   <option value="MX">Mexico</option>
                 </optgroup>
-
                 <optgroup label="Western Europe">
                   <option value="GB">United Kingdom</option>
                   <option value="DE">Germany</option>
@@ -622,7 +678,6 @@ const downloadCSV = () => {
                   <option value="MT">Malta</option>
                   <option value="CY">Cyprus</option>
                 </optgroup>
-
                 <optgroup label="Central & Eastern Europe">
                   <option value="PL">Poland</option>
                   <option value="CZ">Czech Republic</option>
@@ -637,7 +692,6 @@ const downloadCSV = () => {
                   <option value="LV">Latvia</option>
                   <option value="EE">Estonia</option>
                 </optgroup>
-
                 <optgroup label="Asia-Pacific">
                   <option value="JP">Japan</option>
                   <option value="KR">South Korea</option>
@@ -654,7 +708,6 @@ const downloadCSV = () => {
                   <option value="BN">Brunei</option>
                   <option value="IN">India</option>
                 </optgroup>
-
                 <optgroup label="Middle East">
                   <option value="AE">United Arab Emirates</option>
                   <option value="SA">Saudi Arabia</option>
@@ -667,7 +720,6 @@ const downloadCSV = () => {
                   <option value="LB">Lebanon</option>
                   <option value="TR">Turkey</option>
                 </optgroup>
-
                 <optgroup label="Latin America">
                   <option value="BR">Brazil</option>
                   <option value="AR">Argentina</option>
@@ -682,7 +734,6 @@ const downloadCSV = () => {
                   <option value="JM">Jamaica</option>
                   <option value="TT">Trinidad & Tobago</option>
                 </optgroup>
-
                 <optgroup label="Africa">
                   <option value="ZA">South Africa</option>
                   <option value="NG">Nigeria</option>
@@ -693,7 +744,6 @@ const downloadCSV = () => {
                   <option value="TN">Tunisia</option>
                   <option value="MU">Mauritius</option>
                 </optgroup>
-
                 <option value="">Any Country</option>
               </select>
             </div>
@@ -724,39 +774,39 @@ const downloadCSV = () => {
             </div>
             <div>
               <label className="text-[10px] text-slate-500 uppercase tracking-wider mb-1 block">Year Created</label>
-                <select value={siYear} onChange={e => setSiYear(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white">
-              <option value="">Any Year</option>
-              <option value="2026">2026</option>
-              <option value="2025">2025</option>
-              <option value="2024">2024</option>
-              <option value="2023">2023</option>
-              <option value="2022">2022</option>
-              <option value="2021">2021</option>
-              <option value="2020">2020</option>
-              <option value="2019">2019</option>
-              <option value="2018">2018</option>
-              <option value="2017">2017</option>
-              <option value="2016">2016</option>
-              <option value="2015">2015</option>
-              <option value="2014">2014</option>
-              <option value="2013">2013</option>
-              <option value="2012">2012</option>
-              <option value="2011">2011</option>
-              <option value="2010">2010</option>
-              <option value="2009">2009</option>
-              <option value="2008">2008</option>
-              <option value="2007">2007</option>
-              <option value="2006">2006</option>
-              <option value="2005">2005</option>
-              <option value="2000">2000s</option>
-              <option value="1990">1990s</option>
-              <option value="1980">1980s</option>
-              <option value="1970">1970s</option>
-              <option value="1960">1960s</option>
-              <option value="1950">1950s</option>
-              <option value="1940">1940s</option>
-              <option value="1930">1930s</option>
-              <option value="1900">1900s</option>
+              <select value={siYear} onChange={e => setSiYear(e.target.value)} className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-lg text-sm text-white">
+                <option value="">Any Year</option>
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+                <option value="2023">2023</option>
+                <option value="2022">2022</option>
+                <option value="2021">2021</option>
+                <option value="2020">2020</option>
+                <option value="2019">2019</option>
+                <option value="2018">2018</option>
+                <option value="2017">2017</option>
+                <option value="2016">2016</option>
+                <option value="2015">2015</option>
+                <option value="2014">2014</option>
+                <option value="2013">2013</option>
+                <option value="2012">2012</option>
+                <option value="2011">2011</option>
+                <option value="2010">2010</option>
+                <option value="2009">2009</option>
+                <option value="2008">2008</option>
+                <option value="2007">2007</option>
+                <option value="2006">2006</option>
+                <option value="2005">2005</option>
+                <option value="2000">2000s</option>
+                <option value="1990">1990s</option>
+                <option value="1980">1980s</option>
+                <option value="1970">1970s</option>
+                <option value="1960">1960s</option>
+                <option value="1950">1950s</option>
+                <option value="1940">1940s</option>
+                <option value="1930">1930s</option>
+                <option value="1900">1900s</option>
               </select>
             </div>
             <div>
@@ -970,9 +1020,14 @@ const downloadCSV = () => {
               Select All With Email
             </button>
             {selected.size > 0 && (
-              <button onClick={deleteSelected} className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 rounded-lg text-xs font-medium flex items-center gap-1.5">
-                <IconTrash className="w-3 h-3" /> Delete ({selected.size})
-              </button>
+              <>
+                <button onClick={() => openEnroll(Array.from(selected))} className="px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-400 rounded-lg text-xs font-medium flex items-center gap-1.5">
+                  <IconRefresh className="w-3 h-3" /> Enroll Selected ({selected.size})
+                </button>
+                <button onClick={deleteSelected} className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-400 rounded-lg text-xs font-medium flex items-center gap-1.5">
+                  <IconTrash className="w-3 h-3" /> Delete ({selected.size})
+                </button>
+              </>
             )}
           </div>
           <span className="text-xs text-slate-500">
@@ -1061,13 +1116,24 @@ const downloadCSV = () => {
                 </div>
                 <div className="flex items-center gap-2 pt-3 border-t border-slate-800">
                   {lead.email ? (
-                    <a
-                      href={`/outreach?email=${encodeURIComponent(lead.email)}&domain=${encodeURIComponent(lead.store_name)}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex-1 px-3 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
-                    >
-                      <IconMessage className="w-3 h-3" /> Audit & Outreach
-                    </a>
+                    <>
+                      <a
+                        href={`/outreach?email=${encodeURIComponent(lead.email)}&domain=${encodeURIComponent(lead.store_name)}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex-1 px-3 py-2 bg-violet-600 hover:bg-violet-500 text-white rounded-lg text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <IconMessage className="w-3 h-3" /> Audit & Outreach
+                      </a>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEnroll([lead.id]);
+                        }}
+                        className="px-3 py-2 bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-violet-400 rounded-lg text-xs font-semibold transition-colors flex items-center gap-1.5"
+                      >
+                        <IconRefresh className="w-3 h-3" /> Enroll
+                      </button>
+                    </>
                   ) : (
                     <span className="flex-1 px-3 py-2 bg-slate-800 text-slate-500 rounded-lg text-xs font-medium text-center border border-slate-700">
                       No email
@@ -1124,14 +1190,8 @@ const downloadCSV = () => {
       {/* ─── Lead Detail Drawer ─── */}
       {drawerLead && (
         <>
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
-            onClick={closeDrawer}
-          />
-          {/* Drawer */}
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" onClick={closeDrawer} />
           <div className="fixed top-0 right-0 h-full w-full sm:w-[420px] bg-[#0f1429] border-l border-slate-800 z-50 shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
-            {/* Header */}
             <div className="flex items-center justify-between p-5 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <IconPencil className="w-4 h-4 text-violet-400" />
@@ -1141,17 +1201,9 @@ const downloadCSV = () => {
                 <IconX className="w-5 h-5" />
               </button>
             </div>
-
-            {/* Scrollable Content */}
             <div className="flex-1 overflow-y-auto p-5 space-y-6">
-              {/* Store Info */}
               <div>
-                <a
-                  href={drawerLead.store_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-lg font-bold text-white hover:text-violet-400 transition-colors"
-                >
+                <a href={drawerLead.store_url} target="_blank" rel="noopener noreferrer" className="text-lg font-bold text-white hover:text-violet-400 transition-colors">
                   {drawerLead.store_name}
                 </a>
                 <p className="text-xs text-slate-500 mt-1">{drawerLead.store_url}</p>
@@ -1272,6 +1324,56 @@ const downloadCSV = () => {
             </div>
           </div>
         </>
+      )}
+
+      {/* ─── Enroll Modal ─── */}
+      {enrollModal.open && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setEnrollModal({ open: false, leadIds: [] })} />
+          <div className="relative w-full max-w-md rounded-2xl bg-[#0f1429] border border-slate-700 shadow-2xl p-6">
+            <h3 className="text-base font-bold text-white mb-4">Enroll in Sequence</h3>
+            
+            {sequences.length === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-sm text-slate-500 mb-3">No sequences yet.</p>
+                <a href="/follow-ups" className="text-sm text-violet-400 hover:text-violet-300 font-medium">Create one first →</a>
+              </div>
+            ) : (
+              <div className="space-y-3 mb-6">
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1.5">Sequence</label>
+                  <select 
+                    value={selectedSequence} 
+                    onChange={(e) => setSelectedSequence(e.target.value)} 
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                  >
+                    {sequences.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1.5">Send From</label>
+                  <select 
+                    value={selectedSender} 
+                    onChange={(e) => setSelectedSender(e.target.value)} 
+                    className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-sm text-white focus:outline-none focus:ring-2 focus:ring-violet-500/40"
+                  >
+                    {senders.map((s) => <option key={s.email} value={s.email}>{s.display_name || s.email}</option>)}
+                  </select>
+                </div>
+              </div>
+            )}
+
+            {sequences.length > 0 && (
+              <button 
+                onClick={confirmEnroll} 
+                disabled={enrolling || !selectedSequence || !selectedSender} 
+                className="w-full py-2.5 bg-violet-600 hover:bg-violet-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-semibold rounded-xl text-sm transition-colors"
+              >
+                {enrolling ? "Enrolling..." : `Enroll ${enrollModal.leadIds.length} lead(s)`}
+              </button>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

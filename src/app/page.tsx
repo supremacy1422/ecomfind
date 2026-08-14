@@ -118,19 +118,22 @@ export default function HomePage() {
       {/* ─── Nav ─── */}
       <header className="border-b border-slate-800/60 bg-[#0b0f1e]/80 backdrop-blur sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
-              <IconZap className="w-5 h-5 text-violet-400" />
-            </div>
-            <span className="font-bold text-white tracking-tight text-lg">EcomFind</span>
-          </div>
+          <a href="/" className="flex items-center gap-2">
+            <img 
+              src="/ecomfind_logo_light.png" 
+              alt="EcomFind" 
+              className="h-8 w-auto"
+            />
+          </a>
 
           <nav className="hidden md:flex items-center gap-1">
             <a href="/discover" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Audit</a>
+            <a href="/bulk-audit" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Bulk Audit</a>
             <a href="/leads" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Leads</a>
             <a href="/outreach" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Outreach</a>
             <a href="/bulk-outreach" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Bulk</a>
             <a href="/gmail-connections" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Gmail</a>
+            <a href="/follow-ups" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Follow-ups</a>
             <a href="/dashboard" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Dashboard</a>
             <a href="/about" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">About</a>
             <a href="/founder" className="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-sm transition-colors">Founder</a>
@@ -151,10 +154,15 @@ export default function HomePage() {
         {mobileMenu && (
           <div className="md:hidden border-t border-slate-800 bg-[#0b0f1e]/95 px-4 py-4 space-y-2">
             <a href="/discover" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">Audit</a>
+            <a href="/bulk-audit" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">Bulk Audit</a>
             <a href="/leads" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">Leads</a>
             <a href="/outreach" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">Outreach</a>
+            <a href="/bulk-outreach" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">Bulk</a>
             <a href="/gmail-connections" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">Gmail</a>
+            <a href="/follow-ups" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">Follow-ups</a>
+            <a href="/dashboard" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">Dashboard</a>
             <a href="/about" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">About</a>
+            <a href="/founder" className="block px-3 py-2 rounded-lg text-slate-300 hover:bg-slate-800 text-sm">Founder</a>
             <div className="pt-2 border-t border-slate-800 flex gap-3">
               <a href="/login" className="flex-1 text-center py-2 text-sm text-slate-300 border border-slate-700 rounded-lg">Sign In</a>
               <a href="/discover" className="flex-1 text-center py-2 text-sm bg-violet-600 text-white rounded-lg font-semibold">Start Auditing</a>
